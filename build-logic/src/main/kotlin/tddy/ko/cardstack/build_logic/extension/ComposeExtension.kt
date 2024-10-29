@@ -10,8 +10,6 @@ internal fun Project.configureComposeExtension(commonExtension: CommonExtension<
     commonExtension.apply {
         buildFeatures.compose = true
         dependencies {
-            val bom = libs.library("androidx-compose-bom")
-            add("implementation", platform(bom))
             add("implementation", libs.library("androidx-compose-ui-graphics"))
             add("implementation", libs.library("androidx-compose-ui-tooling-preview"))
             add("implementation", libs.library("androidx-compose-material3"))
