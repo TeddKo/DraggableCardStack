@@ -6,10 +6,6 @@
 
 A Jetpack Compose library that provides a customizable draggable card stack with smooth animations and gestures.
 
-<p align="center">
- <img src="screenshots/demo.gif" width="300" alt="Demo GIF"/>
-</p>
-
 ## Features
 
 - 🎯 Smooth spring-based animations
