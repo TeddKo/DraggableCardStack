@@ -4,9 +4,9 @@
 [![API](https://img.shields.io/badge/API-24%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=23)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-A ***Jetpack Compose*** library that provides a customizable draggable card stack with smooth animations and gestures.
+A ***`Jetpack Compose`*** library that provides a customizable draggable card stack with smooth animations and gestures.
 
-### Features
+## Features
 
 - 🎯 Smooth spring-based animations
 - 🔄 Vertical and horizontal swiping support
@@ -16,7 +16,7 @@ A ***Jetpack Compose*** library that provides a customizable draggable card stac
 - ⚡ Velocity-based swipe detection
 - 🔄 Automatic card reordering
 
-### Installation
+## Installation
 
 Add the dependency in your app's build.gradle:
 
@@ -26,7 +26,7 @@ dependencies {
 }
 ```
 
-### Usage
+## Usage
 Basic implementation:
 ```kotlin
 @Composable
@@ -54,7 +54,7 @@ fun CardStackExample() {
 }
 ```
 
-### Advanced Example
+## Advanced Example
 ```kotlin
 data class CardItem(
     val title: String,
