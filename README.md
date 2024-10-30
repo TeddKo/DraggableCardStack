@@ -91,7 +91,7 @@ fun AdvancedCardStackExample() {
                      modifier = Modifier
                          .size(100.dp)
                          .clip(shape = CircleShape),
-                     model = it.asset,
+                     model = item.imageUrl,
                      contentDescription = it.description,
                      contentScale = ContentScale.Crop,
                  )
