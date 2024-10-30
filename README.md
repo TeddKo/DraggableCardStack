@@ -74,33 +74,33 @@ fun AdvancedCardStackExample() {
     
     DraggableCardStack(
         initialItems = items,
-        height = 300.dp,
-        cardSpacingRatio = 0.15f,
+        height = 200.dp,
+        cardSpacingRatio = 0.1f,
         cardAlignment = CardAlignment.BOTTOM,
         dragAlignment = DragAlignment.HORIZONTAL
     ) { item ->
-        Card(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.headlineMedium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = item.description,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
+        Card(modifier = Modifier.fillMaxSize()) {
+             Row(
+                 modifier = Modifier
+                     .fillMaxSize()
+                     .padding(16.dp),
+                 horizontalArrangement = Arrangement.spacedBy(space = 16.dp),
+                 verticalAlignment = Alignment.CenterVertically
+             ) {
+                 AsyncImage(
+                     modifier = Modifier
+                         .size(100.dp)
+                         .clip(shape = CircleShape),
+                     model = it.asset,
+                     contentDescription = it.description,
+                     contentScale = ContentScale.Crop,
+                 )
+                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                     Text(text = item.title)
+                     Text(text = item.description)
+                 }
+             }
+         }
     }
 }
 ```
