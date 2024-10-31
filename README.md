@@ -1,6 +1,6 @@
 # Draggable Card Stack
 
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.username/library-name.svg)](https://central.sonatype.com/artifact/io.github.teddko/cardstack)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.teddko/cardstack.svg)](https://search.maven.org/artifact/io.github.teddko/cardstack/1.0.0/aar)
 [![API](https://img.shields.io/badge/API-24%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=23)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
