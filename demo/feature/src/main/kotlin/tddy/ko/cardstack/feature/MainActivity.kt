@@ -5,19 +5,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Card
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -44,35 +42,26 @@ class MainActivity : ComponentActivity() {
                 ) {
                     DraggableCardStack(
                         initialItems = images,
-                        height = 200.dp,
+                        height = 300.dp,
                         cardSpacingRatio = .1f,
                         cardAlignment = CardAlignment.BOTTOM,
                         dragAlignment = DragAlignment.NONE
                     ) {
-                        Card(
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(space = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                AsyncImage(
-                                    modifier = Modifier
-                                        .size(100.dp)
-                                        .clip(shape = CircleShape),
-                                    model = it.asset,
-                                    contentDescription = it.description,
-                                    contentScale = ContentScale.Crop,
-                                )
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(text = it.description)
-                                    Text(text = it.description)
-                                }
-                            }
-                        }
+                        AsyncImage(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(shape = RoundedCornerShape(8.dp)),
+                            model = it.asset,
+                            contentDescription = it.description,
+                            contentScale = ContentScale.Crop
+                        )
+                        Text(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(bottom = 16.dp, end = 16.dp),
+                            text = it.description,
+                            color = Color.White
+                        )
                     }
                 }
             }
