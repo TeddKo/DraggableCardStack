@@ -26,6 +26,8 @@ dependencies {
 }
 ```
 
+![Screen_Recording_20241028_180106_CardStack_1-ezgif com-resize](https://github.com/user-attachments/assets/a66a711e-28af-4d27-ab2b-a9b1681fb455)
+
 ## Usage
 Basic implementation:
 ```kotlin
