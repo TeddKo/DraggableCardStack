@@ -1,11 +1,15 @@
-# Draggable Card Stack
+<h1 align="center">Draggable Card Stack</h1>
 
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.teddko/cardstack.svg)](https://search.maven.org/artifact/io.github.teddko/cardstack/1.0.0/aar)
-[![API](https://img.shields.io/badge/API-23%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=23)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+<p align="center">
+  <a href="https://search.maven.org/artifact/io.github.teddko/cardstack/1.0.0/aar"><img alt="MavenCentral" src="https://img.shields.io/maven-central/v/io.github.teddko/cardstack.svg"/></a>
+  <a href="https://android-arsenal.com/api?level=23"><img alt="API" src="https://img.shields.io/badge/API-23%2B-brightgreen.svg"/></a>
+  <a href="[https://search.maven.org/artifact/io.github.teddko/cardstack/1.0.0/aar](https://opensource.org/licenses/Apache-2.0)"><img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"/></a>
+</p> <br>
 
 A ***`Jetpack Compose`*** library that provides a customizable draggable card stack with smooth
 animations and gestures.
+
+<img align="right" src="https://github.com/user-attachments/assets/a66a711e-28af-4d27-ab2b-a9b1681fb455" /> 
 
 ## Features
 
@@ -16,8 +20,8 @@ animations and gestures.
 - 💫 Dynamic elevation and scale animations
 - ⚡ Velocity-based swipe detection
 - 🔄 Automatic card reordering
-  </br></br>
-  ![Screen_Recording_20241028_180106_CardStack_1-ezgif com-resize](https://github.com/user-attachments/assets/a66a711e-28af-4d27-ab2b-a9b1681fb455)
+
+<br><br><br>
 
 ## Installation
 
