@@ -29,7 +29,7 @@ Add the dependency in your app's build.gradle:
 
 ```kotlin
 dependencies {
-    implementation("io.github.teddko:cardstack:1.0.0")
+    implementation("io.github.teddko:cardstack:1.0.1")
 }
 ```
 
