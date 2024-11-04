@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -294,7 +295,7 @@ private fun DraggableCard(
             }
             .shadow(elevation = animatedElevation.dp, shape = RoundedCornerShape(12.dp))
             .then(
-                if (index == 0 && !isAnimating) {
+                if (!isAnimating) {
                     Modifier.pointerInput(Unit) {
                         val velocityTracker = VelocityTracker()
                         detectDragGestures(
@@ -328,9 +329,11 @@ private fun DraggableCard(
                                             cardAlignment = cardAlignment
                                         )
                                         offset = targetOffset
+                                        delay(10)
                                         updatedOnSwipe(direction)
                                     }
                                     offset = Offset.Zero
+                                    delay(10)
                                     isAnimating = false
                                 }
                             }
