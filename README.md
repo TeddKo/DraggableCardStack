@@ -9,7 +9,7 @@
 A ***`Jetpack Compose`*** library that provides a customizable draggable card stack with smooth
 animations and gestures.
 
-<img align="right" src="https://github.com/user-attachments/assets/a66a711e-28af-4d27-ab2b-a9b1681fb455" /> 
+<img align="right" src="https://github.com/user-attachments/assets/8fd29fb1-8a18-4ada-9b81-3a246239ba77" /> 
 
 ## Features
 
@@ -21,7 +21,7 @@ animations and gestures.
 - ⚡ Velocity-based swipe detection
 - 🔄 Automatic card reordering
 
-<br><br><br>
+<br><br>
 
 ## Installation
 
