@@ -1,45 +1,39 @@
 <h1 align="center">Draggable Card Stack</h1>
 
 <p align="center">
-  <a href="https://search.maven.org/artifact/io.github.teddko/cardstack/1.0.0/aar"><img alt="MavenCentral" src="https://img.shields.io/maven-central/v/io.github.teddko/cardstack.svg"/></a>
+  <a href="https://search.maven.org/artifact/io.github.teddko/cardstack"><img alt="MavenCentral" src="https://img.shields.io/maven-central/v/io.github.teddko/cardstack.svg"/></a>
   <a href="https://android-arsenal.com/api?level=23"><img alt="API" src="https://img.shields.io/badge/API-23%2B-brightgreen.svg"/></a>
-  <a href="[https://search.maven.org/artifact/io.github.teddko/cardstack/1.0.0/aar](https://opensource.org/licenses/Apache-2.0)"><img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"/></a>
-</p> <br>
+  <a href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg"/></a>
+</p>
+<p align="center">
+A <strong>Jetpack Compose</strong> library for customizable draggable card stacks with smooth animations.
+</p>
 
-A ***`Jetpack Compose`*** library that provides a customizable draggable card stack with smooth
-animations and gestures.
-
-<img align="right" src="https://github.com/user-attachments/assets/8fd29fb1-8a18-4ada-9b81-3a246239ba77" /> 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/8fd29fb1-8a18-4ada-9b81-3a246239ba77" width="320" />
+</p>
 
 ## Features
 
 - 🎯 Smooth spring-based animations
-- 🔄 Vertical and horizontal swiping support
-- 📱 Responsive design adapting to screen size
-- 🎨 Customizable card alignment and spacing
-- 💫 Dynamic elevation and scale animations
+- 🔄 Vertical and horizontal swiping
+- 📱 Responsive design
+- 🎨 Customizable card alignment & spacing
+- 💫 Dynamic elevation & scale animations
 - ⚡ Velocity-based swipe detection
 - 🔄 Automatic card reordering
 
-<br><br>
-
 ## Installation
-
-Add the dependency in your app's build.gradle:
-
 ```kotlin
 dependencies {
     implementation("io.github.teddko:cardstack:1.0.1")
 }
 ```
 
-## Usage
-
-Basic implementation:
-
+## Basic Usage
 ```kotlin
 @Composable
-fun CardStackExample() {
+fun CardStackDemo() {
     val items = remember { listOf("Card 1", "Card 2", "Card 3") }
 
     DraggableCardStack(
@@ -63,8 +57,7 @@ fun CardStackExample() {
 }
 ```
 
-## Advanced Example
-
+## Advanced Usage
 ```kotlin
 data class CardItem(
     val title: String,
@@ -73,7 +66,7 @@ data class CardItem(
 )
 
 @Composable
-fun AdvancedCardStackExample() {
+fun AdvancedCardStack() {
     val items = remember {
         listOf(
             CardItem("Title 1", "Description 1", "url1"),
@@ -94,15 +87,15 @@ fun AdvancedCardStackExample() {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(space = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AsyncImage(
                     modifier = Modifier
                         .size(100.dp)
-                        .clip(shape = CircleShape),
+                        .clip(CircleShape),
                     model = item.imageUrl,
-                    contentDescription = it.description,
+                    contentDescription = item.description,
                     contentScale = ContentScale.Crop,
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -116,11 +109,8 @@ fun AdvancedCardStackExample() {
 ```
 
 ## Customization
-
-### Card Alignment Options
-
+### Card Alignment
 ```kotlin
-// Align cards to different positions in the stack
 CardAlignment.BOTTOM        // Bottom center
 CardAlignment.BOTTOM_START  // Bottom left
 CardAlignment.BOTTOM_END    // Bottom right
@@ -132,10 +122,8 @@ CardAlignment.END          // Center right
 ```
 
 ### Drag Alignment
-
 ```kotlin
-// Control how cards can be dragged
-DragAlignment.VERTICAL    // Only vertical dragging
-DragAlignment.HORIZONTAL  // Only horizontal dragging
-DragAlignment.NONE       // All directions allowed
+DragAlignment.VERTICAL    // Vertical only
+DragAlignment.HORIZONTAL  // Horizontal only
+DragAlignment.NONE       // All directions
 ```
