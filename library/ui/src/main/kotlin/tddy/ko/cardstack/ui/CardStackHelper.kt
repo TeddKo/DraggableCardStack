@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Velocity
 import kotlin.math.absoluteValue
+import kotlin.math.pow
 
 /**
  * Represents the possible directions for card swiping gestures.
@@ -111,8 +112,6 @@ internal fun calculateSwipeProgress(offset: Offset, velocityThresholdPx: Float):
  * Calculates the scale factor for each card in the stack.
  *
  * @param index The index of the card in the stack
- * @param itemCount Total number of cards
- * @param stackDragProgress The current drag progress of the stack
  * @return The calculated scale factor
  **/
 internal fun calculateScales(index: Int, itemCount: Int, stackDragProgress: Float): Float {
@@ -165,52 +164,40 @@ internal fun calculateDragBasedOffset(
     spacingPx: Float,
     itemCount: Int,
     cardAlignment: CardAlignment
-): Offset = when {
-    index == itemCount - 1 && stackDragProgress < 0f -> {
-        val progress = stackDragProgress * (itemCount - index)
-        when (cardAlignment) {
-            CardAlignment.TOP -> Offset(0f, -(spacingPx * progress) * progress)
-            CardAlignment.BOTTOM -> Offset(0f, (spacingPx * progress) * progress)
-            CardAlignment.TOP_START, CardAlignment.BOTTOM_START ->
-                Offset(
-                    (spacingPx * progress) * progress,
-                    (spacingPx * progress) * progress * if (cardAlignment == CardAlignment.BOTTOM_START) 1 else -1
-                )
-
-            CardAlignment.TOP_END, CardAlignment.BOTTOM_END ->
-                Offset(
-                    -(spacingPx * progress) * progress,
-                    (spacingPx * progress) * progress * if (cardAlignment == CardAlignment.BOTTOM_END) 1 else -1
-                )
-
-            CardAlignment.START -> Offset((spacingPx * progress) * progress, 0f)
-            CardAlignment.END -> Offset(-(spacingPx * progress) * progress, 0f)
-        }
+): Offset {
+    val progress = if (index == itemCount - 1 && stackDragProgress < 0f) {
+        (-stackDragProgress).coerceIn(0f, 1f)
+    } else {
+        (stackDragProgress * (1f - (index.toFloat() / itemCount))).coerceIn(-1f, 1f)
     }
 
-    index > 0 && stackDragProgress != 0f -> {
-        val progress = (stackDragProgress * (itemCount - index)).coerceIn(0f, 1f)
-        when (cardAlignment) {
-            CardAlignment.TOP -> Offset(0f, -spacingPx * progress)
-            CardAlignment.BOTTOM -> Offset(0f, spacingPx * progress)
-            CardAlignment.TOP_START, CardAlignment.BOTTOM_START ->
-                Offset(
-                    spacingPx * progress,
-                    spacingPx * progress * if (cardAlignment == CardAlignment.BOTTOM_START) 1 else -1
-                )
+    val easedProgress = progress * progress * (3 - 2 * progress)
 
-            CardAlignment.TOP_END, CardAlignment.BOTTOM_END ->
-                Offset(
-                    -spacingPx * progress,
-                    spacingPx * progress * if (cardAlignment == CardAlignment.BOTTOM_END) 1 else -1
-                )
-
-            CardAlignment.START -> Offset(spacingPx * progress, 0f)
-            CardAlignment.END -> Offset(-spacingPx * progress, 0f)
-        }
+    return when (cardAlignment) {
+        CardAlignment.TOP -> Offset(
+            0f,
+            spacingPx * easedProgress * if (index == itemCount - 1 && stackDragProgress < 0f) 1f else -1f
+        )
+        CardAlignment.BOTTOM -> Offset(0f, spacingPx * easedProgress)
+        CardAlignment.TOP_START -> Offset(
+            spacingPx * easedProgress,
+            -spacingPx * easedProgress
+        )
+        CardAlignment.BOTTOM_START -> Offset(
+            spacingPx * easedProgress,
+            spacingPx * easedProgress
+        )
+        CardAlignment.TOP_END -> Offset(
+            -spacingPx * easedProgress,
+            -spacingPx * easedProgress
+        )
+        CardAlignment.BOTTOM_END -> Offset(
+            -spacingPx * easedProgress,
+            spacingPx * easedProgress
+        )
+        CardAlignment.START -> Offset(spacingPx * easedProgress, 0f)
+        CardAlignment.END -> Offset(-spacingPx * easedProgress, 0f)
     }
-
-    else -> Offset.Zero
 }
 
 /**
