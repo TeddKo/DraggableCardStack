@@ -1,3 +1,5 @@
+@file:Suppress("SENSELESS_COMPARISON")
+
 package tddy.ko.cardstack.ui
 
 import androidx.compose.animation.core.Spring

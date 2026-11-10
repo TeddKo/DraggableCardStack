@@ -1,5 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
-
 plugins {
     alias(libs.plugins.tddy.ko.android.library)
     alias(libs.plugins.tddy.ko.compose.library)
@@ -10,12 +8,22 @@ android {
     namespace = "tddy.ko.cardstack.ui"
 }
 
+dependencies {
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
 
-    signAllPublications()
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+        signAllPublications()
+    }
 
-    coordinates("io.github.teddko", "cardstack", "1.0.0")
+    coordinates("io.github.teddko", "cardstack", libs.versions.cardstack.get())
 
     pom {
         name.set("CardStack")
