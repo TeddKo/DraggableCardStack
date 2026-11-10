@@ -55,6 +55,7 @@ public class CardStackState internal constructor(
 
     internal fun sync(size: Int) {
         if (order.size == size && order.all { it < size }) return
+        lastMove = Move.NONE
         order = reconcile(order, size)
     }
 

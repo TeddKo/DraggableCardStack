@@ -1,15 +1,13 @@
-@file:Suppress("SENSELESS_COMPARISON")
-
 package tddy.ko.cardstack.ui
 
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateOffset
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.updateTransition
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.draggable2D
+import androidx.compose.foundation.gestures.rememberDraggable2DState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,30 +16,32 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * DraggableCardStack is a customizable composable that implements a stack of draggable cards
@@ -132,7 +132,7 @@ public fun <T> DraggableCardStack(
         }
     }
 
-    val (stackDragProgress, onDrag) = remember { mutableFloatStateOf(0f) }
+    val stackDragProgress = remember { mutableFloatStateOf(0f) }
 
     Box(
         modifier = modifier
@@ -148,18 +148,12 @@ public fun <T> DraggableCardStack(
                     height = height,
                     cardSpacing = cardSpacing,
                     velocityThreshold = velocityThreshold,
+                    state = state,
                     itemCount = order.size,
                     index = index,
                     cardAlignment = cardAlignment,
                     dragAlignment = dragAlignment,
                     stackDragProgress = stackDragProgress,
-                    onDrag = onDrag,
-                    onSwipe = { direction ->
-                        when (direction) {
-                            DragDirection.LEFT, DragDirection.DOWN -> state.rotate(-1)
-                            DragDirection.RIGHT, DragDirection.UP -> state.rotate(1)
-                        }
-                    },
                     content = { cardContent(initialItems[itemIndex]) }
                 )
             }
@@ -188,173 +182,207 @@ public fun <T> DraggableCardStack(
 }
 
 /**
- *
- * A composable component that represents a draggable card within the card stack.
- * Handles individual card animations, gestures, and state management.
+ * A draggable card within the card stack, owning its drag offset, lift and flight animations.
  *
  * @param density The current display density
  * @param height Height of the card
  * @param cardSpacing Spacing between cards in the stack
- * @param velocityThreshold Threshold for swipe velocity to trigger card actions
+ * @param velocityThreshold Release velocity that commits a swipe
+ * @param state State holder receiving the order change of a committed swipe
  * @param itemCount Total number of cards in the stack
- * @param index Position of this card in the stack (0 is top card)
+ * @param index Position of this card in the stack (0 is the front card)
  * @param cardAlignment Alignment of cards in the stack
  * @param dragAlignment Allowed drag directions
- * @param stackDragProgress Current drag progress of the stack (-1 to 1)
- * @param onDrag Callback invoked during drag with progress value
- * @param onSwipe Callback invoked when card is swiped with direction
+ * @param stackDragProgress Drag progress of the front card (-1 to 1), read by back cards at draw time
  * @param content Composable content to be displayed in the card
  *
- * Features:
- * - Spring-based animations for smooth transitions
- * - Gesture detection with velocity tracking
- * - Dynamic elevation changes during interaction
- * - Scale animations based on stack position
- * - Support for both vertical and horizontal swiping
- * - Automatic card repositioning after swipe
- *
- * Internal behavior:
- * - Tracks drag offset and animation state
- * - Calculates swipe velocity and direction
- * - Manages elevation changes during drag
- * - Handles scale transitions
- * - Applies position adjustments based on alignment
- *
- * Animation specifications:
- * - Uses spring animation for offset changes (low bounce, low stiffness)
- * - Animates elevation from 4dp to 8dp during interaction
- * - Scale factor decreases for each card in the stack
- * - Smooth transitions for all transform properties
- *
- * Gesture handling:
- * - Only top card (index 0) responds to gestures
- * - Tracks velocity for swipe detection
- * - Supports configurable velocity thresholds
- * - Handles drag cancellation and completion
- *
- * Note: This component is designed to be used within DraggableCardStack
- * and should not be used independently.
- */
+ * Behavior:
+ * - Only the front card is draggable, and a new drag interrupts any running flight
+ * - Resting slot, drag offset and flights are applied in the placement phase, lift and tilt in
+ *   the draw phase, so a drag does not recompose the content
+ * - A forward swipe flies the card out along the release vector, then tucks it to the back
+ * - A reverse swipe springs the card to the second slot while the last card flies out and lands in front
+ **/
 @Composable
 private fun DraggableCard(
     density: Density,
     height: Dp,
     cardSpacing: Dp,
     velocityThreshold: Dp,
+    state: CardStackState,
     itemCount: Int,
     index: Int,
     cardAlignment: CardAlignment,
     dragAlignment: DragAlignment,
-    stackDragProgress: Float,
-    onDrag: (Float) -> Unit,
-    onSwipe: (DragDirection) -> Unit,
+    stackDragProgress: MutableFloatState,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val coroutineScope = rememberCoroutineScope()
-    var offset by remember { mutableStateOf(Offset.Zero) }
-    var isAnimating by remember { mutableStateOf(false) }
-
+    val scope = rememberCoroutineScope()
     val velocityThresholdPx = with(density) { velocityThreshold.toPx() }
     val spacingPx = with(density) { cardSpacing.toPx() }
+    val shape = remember { RoundedCornerShape(12.dp) }
 
-    val swipeProgress = calculateSwipeProgress(offset, velocityThresholdPx)
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var cardSize by remember { mutableStateOf(IntSize.Zero) }
+    var heldZ by remember { mutableStateOf<Float?>(null) }
+    var isLifted by remember { mutableStateOf(false) }
+    var flight by remember { mutableStateOf<Job?>(null) }
+    val previousIndex = remember { mutableIntStateOf(index) }
 
-    val updatedOnDrag by rememberUpdatedState(onDrag)
-    val updatedOnSwipe by rememberUpdatedState(onSwipe)
+    val depth by animateFloatAsState(index.toFloat(), DepthSpring, label = "depth")
+    val lift by animateFloatAsState(if (isLifted) 1f else 0f, tween(durationMillis = 200), label = "lift")
 
-    val transition = updateTransition(targetState = offset, label = "cardTransition")
+    fun launchFlight(out: Offset, pastDistance: Float, velocity: Offset, topFirst: Boolean) {
+        flight = scope.launch {
+            var v = velocity
+            try {
+                heldZ = if (topFirst) itemCount + 1f else null
+                launch inner@{
+                    animate(Offset.VectorConverter, dragOffset, out, v, FlightSpring) { value, velocity ->
+                        dragOffset = value
+                        v = velocity
+                        if (value.getDistance() >= pastDistance) this@inner.cancel()
+                    }
+                }.join()
+                heldZ = if (topFirst) null else itemCount + 1f
+                animate(Offset.VectorConverter, dragOffset, Offset.Zero, v, SettleSpring) { value, _ ->
+                    dragOffset = value
+                }
+            } finally {
+                heldZ = null
+                flight = null
+            }
+        }
+    }
 
-    val animatedOffset by transition.animateOffset(
-        label = "offsetAnimation",
-        transitionSpec = {
-            spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)
-        },
-        targetValueByState = { it }
-    )
-    val animatedElevation by animateFloatAsState(
-        targetValue = if (isAnimating) 8f else 4f,
-        animationSpec = tween(durationMillis = 200),
-        label = "animatedElevation"
-    )
+    fun settle(velocity: Offset) {
+        flight = scope.launch {
+            try {
+                animate(Offset.VectorConverter, dragOffset, Offset.Zero, velocity, SettleSpring) { value, _ ->
+                    dragOffset = value
+                }
+            } finally {
+                flight = null
+            }
+        }
+    }
 
+    LaunchedEffect(index) {
+        val wasLast = previousIndex.intValue == itemCount - 1
+        previousIndex.intValue = index
+        if (index == 0 && wasLast && itemCount >= 3 && state.lastMove == Move.REVERSE) {
+            val peek = calculateLastOffset(cardAlignment, 1f, 1f)
+            val isVertical = cardAlignment != CardAlignment.START && cardAlignment != CardAlignment.END
+            val extent = (if (isVertical) cardSize.height else cardSize.width).toFloat()
+            val axis = if (isVertical) Offset(0f, peek.y) else Offset(peek.x, 0f)
+            launchFlight(axis * extent, extent * 0.5f, Offset.Zero, topFirst = false)
+        }
+    }
 
-    val targetScale = calculateScales(index, itemCount, stackDragProgress)
-    val animatedScale by transition.animateFloat(
-        label = "scaleAnimation",
-        transitionSpec = {
-            spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)
-        },
-        targetValueByState = { targetScale }
-    )
-
-    val lastOffset = calculateLastOffset(cardAlignment, index, spacingPx)
-    val dragBasedOffset =
-        calculateDragBasedOffset(stackDragProgress, index, spacingPx, itemCount, cardAlignment)
-
-    LaunchedEffect(swipeProgress) { updatedOnDrag(swipeProgress) }
+    val draggableState = rememberDraggable2DState { delta ->
+        dragOffset += when (dragAlignment) {
+            DragAlignment.VERTICAL -> Offset(x = 0f, y = delta.y)
+            DragAlignment.HORIZONTAL -> Offset(x = delta.x, y = 0f)
+            DragAlignment.NONE -> delta
+        }
+        if (index == 0) stackDragProgress.floatValue = calculateSwipeProgress(dragOffset, velocityThresholdPx)
+    }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(height)
-            .padding(horizontal = 12.dp)
-            .zIndex(itemCount.toFloat() - index)
-            .graphicsLayer {
-                scaleX = animatedScale
-                scaleY = animatedScale
-                translationX = animatedOffset.x + lastOffset.x + dragBasedOffset.x
-                translationY = animatedOffset.y + lastOffset.y + dragBasedOffset.y
-                applyAlignmentAdjustment(cardAlignment, animatedScale, size)
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                layout(placeable.width, placeable.height) {
+                    val slot = calculateLastOffset(cardAlignment, depth, spacingPx) +
+                        calculateDragBasedOffset(
+                            stackDragProgress.floatValue, depth, spacingPx, itemCount, cardAlignment
+                        ) + dragOffset
+                    placeable.place(
+                        x = slot.x.roundToInt(),
+                        y = slot.y.roundToInt(),
+                        zIndex = heldZ ?: (itemCount - index).toFloat()
+                    )
+                }
             }
-            .shadow(elevation = animatedElevation.dp, shape = RoundedCornerShape(12.dp))
-            .then(
-                if (!isAnimating) {
-                    Modifier.pointerInput(Unit) {
-                        val velocityTracker = VelocityTracker()
-                        detectDragGestures(
-                            onDragStart = { velocityTracker.resetTracking() },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                offset += when (dragAlignment) {
-                                    DragAlignment.VERTICAL -> Offset(x = 0f, y = dragAmount.y)
-                                    DragAlignment.HORIZONTAL -> Offset(x = dragAmount.x, 0f)
-                                    DragAlignment.NONE -> Offset(x = dragAmount.x, y = dragAmount.y)
-                                }
-                                velocityTracker.addPosition(change.uptimeMillis, change.position)
-                            },
-                            onDragEnd = {
-                                val velocity = velocityTracker.calculateVelocity()
-                                val direction =
-                                    determineSwipeDirection(velocity = velocity, offset = offset)
-
-                                val shouldSwipe = direction != null && isSwipeVelocityExceeded(
-                                    velocity = velocity,
-                                    velocityThresholdPx = velocityThresholdPx
-                                )
-
-                                coroutineScope.launch {
-                                    isAnimating = true
-                                    if (shouldSwipe && direction != null) {
-                                        val targetOffset = calculateTargetOffset(
-                                            direction = direction,
-                                            size = size,
-                                            offset = offset,
-                                            cardAlignment = cardAlignment
-                                        )
-                                        offset = targetOffset
-                                        delay(10)
-                                        updatedOnSwipe(direction)
-                                    }
-                                    offset = Offset.Zero
-                                    delay(10)
-                                    isAnimating = false
-                                }
-                            }
-                        )
+            .draggable2D(
+                state = draggableState,
+                enabled = index == 0 && itemCount >= 2,
+                startDragImmediately = flight != null,
+                onDragStarted = {
+                    flight?.cancel()
+                    isLifted = true
+                },
+                onDragStopped = { velocity ->
+                    isLifted = false
+                    stackDragProgress.floatValue = 0f
+                    val release = Offset(velocity.x, velocity.y)
+                    val direction = swipeDirection(
+                        offset = dragOffset,
+                        velocity = velocity,
+                        commitDistance = Offset(cardSize.width * CommitRatio, cardSize.height * CommitRatio),
+                        velocityThreshold = velocityThresholdPx
+                    )
+                    val isForward = direction == DragDirection.RIGHT || direction == DragDirection.UP
+                    when {
+                        direction == null -> settle(release)
+                        isForward || itemCount < 3 -> {
+                            state.rotate(1)
+                            val out = flyOutTarget(direction, cardSize, dragOffset)
+                            launchFlight(out, out.getDistance().coerceAtMost(extentOf(direction, cardSize)), release, topFirst = true)
+                        }
+                        else -> {
+                            state.rotate(-1)
+                            settle(release)
+                        }
                     }
-                } else Modifier
-            ),
+                }
+            )
+            .padding(horizontal = 12.dp)
+            .onSizeChanged { cardSize = it }
+            .graphicsLayer {
+                val scale = calculateScales(depth, itemCount, stackDragProgress.floatValue) + LiftScale * lift
+                scaleX = scale
+                scaleY = scale
+                rotationZ = tilt(dragOffset, cardSize)
+                shadowElevation = (4f + 4f * lift).dp.toPx()
+                this.shape = shape
+                clip = true
+                applyAlignmentAdjustment(cardAlignment, scale, size)
+            },
         contentAlignment = Alignment.Center,
         content = content
     )
 }
+
+private fun extentOf(direction: DragDirection, size: IntSize): Float = when (direction) {
+    DragDirection.LEFT, DragDirection.RIGHT -> size.width.toFloat()
+    DragDirection.UP, DragDirection.DOWN -> size.height.toFloat()
+}
+
+private fun flyOutTarget(direction: DragDirection, size: IntSize, offset: Offset): Offset {
+    val reach = extentOf(direction, size) * FlyOutRatio
+    return when (direction) {
+        DragDirection.RIGHT -> Offset(reach, offset.y)
+        DragDirection.LEFT -> Offset(-reach, offset.y)
+        DragDirection.DOWN -> Offset(offset.x, reach)
+        DragDirection.UP -> Offset(offset.x, -reach)
+    }
+}
+
+private fun tilt(offset: Offset, size: IntSize): Float {
+    if (size.width == 0 || size.height == 0) return 0f
+    val sideways = (offset.x / size.width).coerceIn(-1f, 1f) * MaxTiltDegrees
+    val lifted = (-offset.y / size.height).coerceIn(-1f, 1f) * LiftTiltDegrees
+    return sideways + lifted
+}
+
+private const val CommitRatio = 0.4f
+private const val FlyOutRatio = 1.2f
+private const val LiftScale = 0.03f
+private const val MaxTiltDegrees = 10f
+private const val LiftTiltDegrees = 6f
+private val DepthSpring = spring<Float>(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)
+private val FlightSpring = spring<Offset>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
+private val SettleSpring = spring<Offset>(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)

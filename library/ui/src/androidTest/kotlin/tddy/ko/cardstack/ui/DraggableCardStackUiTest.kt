@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -14,6 +15,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeWithVelocity
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -86,7 +88,71 @@ class DraggableCardStackUiTest {
         assertEquals(3, state.frontIndex)
     }
 
+    @Test
+    fun upFling_TOP_commits() {
+        val state = CardStackState()
+        setStack(listOf("a", "b", "c", "d"), state, CardAlignment.TOP, DragAlignment.VERTICAL)
+
+        composeRule.onNodeWithTag(StackTag).performTouchInput {
+            val y = top + cardHeight.toPx() / 2
+            swipeWithVelocity(Offset(centerX, y), Offset(centerX, y - 150.dp.toPx()), 6000f)
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(1, state.frontIndex)
+    }
+
+    @Test
+    fun twoFlingsDuringFlight_advanceByTwo() {
+        val state = CardStackState()
+        setStack(listOf("a", "b", "c", "d"), state)
+        composeRule.mainClock.autoAdvance = false
+
+        flingHorizontal(150f)
+        composeRule.mainClock.advanceTimeBy(100)
+        flingHorizontal(150f)
+        composeRule.mainClock.autoAdvance = true
+        composeRule.waitForIdle()
+
+        assertEquals(2, state.frontIndex)
+    }
+
+    @Test
+    fun dragWithoutCommit_doesNotRecomposeContent() {
+        val state = CardStackState()
+        composeRule.setContent {
+            DraggableCardStack(
+                initialItems = listOf("a", "b", "c"),
+                height = cardHeight,
+                cardSpacingRatio = 0.5f,
+                cardAlignment = CardAlignment.BOTTOM,
+                dragAlignment = DragAlignment.HORIZONTAL,
+                modifier = Modifier.testTag(StackTag),
+                state = state,
+            ) { item ->
+                SideEffect { contentComposeCount++ }
+                BasicText(item)
+            }
+        }
+        composeRule.waitForIdle()
+        contentComposeCount = 0
+
+        composeRule.onNodeWithTag(StackTag).performTouchInput {
+            val y = bottom - cardHeight.toPx() / 2
+            down(Offset(centerX, y))
+            repeat(20) { moveBy(Offset(1.dp.toPx(), 0f)) }
+            up()
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(0, state.frontIndex)
+        assertTrue("content recomposed $contentComposeCount times", contentComposeCount <= MaxGestureRecompositions)
+    }
+
+    private var contentComposeCount = 0
+
     private companion object {
+        const val MaxGestureRecompositions = 2
         const val StackTag = "stack"
     }
 }
