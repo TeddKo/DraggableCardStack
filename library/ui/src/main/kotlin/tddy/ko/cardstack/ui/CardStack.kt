@@ -400,6 +400,7 @@ private fun DraggableCard(
                 scaleX = scale
                 scaleY = scale
                 rotationZ = tilt(heldOffset(), cardSize) + tapTilt.value
+                alpha = if (pulling) pullAlpha(heldOffset(), cardSize.toSize()) else 1f
                 shadowElevation = (4f + 4f * lift).dp.toPx()
                 this.shape = shape
                 clip = true

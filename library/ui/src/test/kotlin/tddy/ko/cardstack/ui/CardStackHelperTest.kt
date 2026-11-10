@@ -169,6 +169,23 @@ class GeometryTest {
     }
 
     @Test
+    fun pullOffset_insideDeadZone_isNull() {
+        val size = Size(300f, 200f)
+        assertNull(pullOffset(Offset(-20f, 0f), size))
+        assertNull(pullOffset(Offset(3f, 12f), size))
+    }
+
+    @Test
+    fun pullAlpha_fadesInFromTheStart() {
+        val size = Size(300f, 200f)
+        assertEquals(0f, pullAlpha(Offset(300f, 0f), size), 0.001f)
+        assertEquals(0f, pullAlpha(Offset(0f, -200f), size), 0.001f)
+        assertEquals(0.5f, pullAlpha(Offset(262.5f, 0f), size), 0.001f)
+        assertEquals(1f, pullAlpha(Offset(100f, 0f), size), 0.001f)
+        assertEquals(1f, pullAlpha(Offset.Zero, size), 0.001f)
+    }
+
+    @Test
     fun pullOffset_downDragEntersFromTopAndStopsAtRest() {
         val size = Size(300f, 200f)
         assertEquals(Offset(4f, -150f), pullOffset(Offset(4f, 50f), size))
