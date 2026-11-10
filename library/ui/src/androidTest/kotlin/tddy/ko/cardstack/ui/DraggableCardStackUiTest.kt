@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeWithVelocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.click
@@ -96,6 +97,48 @@ class DraggableCardStackUiTest {
         flingHorizontal(-150f)
 
         assertEquals(3, state.frontIndex)
+    }
+
+    @Test
+    fun leftDragWithoutRelease_keepsFrontAndPullsLastCard() {
+        setStack(listOf("a", "b", "c", "d"), CardStackState(), dragAlignment = DragAlignment.NONE)
+        val front = composeRule.onNodeWithText("a").getUnclippedBoundsInRoot()
+        val lastBefore = composeRule.onNodeWithText("d").getUnclippedBoundsInRoot()
+
+        composeRule.onNodeWithTag(StackTag).performTouchInput {
+            down(Offset(centerX, bottom - cardHeight.toPx() / 2))
+            repeat(10) { moveBy(Offset(-8.dp.toPx(), 0f)) }
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(front, composeRule.onNodeWithText("a").getUnclippedBoundsInRoot())
+        val pulled = composeRule.onNodeWithText("d").getUnclippedBoundsInRoot()
+        assertTrue("pulled $pulled before $lastBefore", pulled.left > lastBefore.left + 100.dp)
+        composeRule.onNodeWithTag(StackTag).performTouchInput { up() }
+    }
+
+    @Test
+    fun shortLeftDrag_keepsOrder() {
+        val state = CardStackState()
+        setStack(listOf("a", "b", "c", "d"), state)
+
+        composeRule.onNodeWithTag(StackTag).performTouchInput {
+            val y = bottom - cardHeight.toPx() / 2
+            swipe(Offset(centerX, y), Offset(centerX - 20.dp.toPx(), y), durationMillis = 1500)
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(0, 1, 2, 3), state.order)
+    }
+
+    @Test
+    fun leftFling_twoCards_swapsOrder() {
+        val state = CardStackState()
+        setStack(listOf("a", "b"), state)
+
+        flingHorizontal(-150f)
+
+        assertEquals(1, state.frontIndex)
     }
 
     @Test

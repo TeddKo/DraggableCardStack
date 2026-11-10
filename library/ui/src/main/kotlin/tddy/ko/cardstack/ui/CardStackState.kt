@@ -8,11 +8,8 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-
-/**
- * Direction of the latest order change, read by the card that comes in from the back.
- **/
-internal enum class Move { NONE, FORWARD, REVERSE }
+import androidx.compose.ui.geometry.Offset
+import kotlinx.coroutines.Job
 
 /**
  * State holder of a [DraggableCardStack] keeping the expansion flag and the card order.
@@ -32,11 +29,14 @@ public class CardStackState internal constructor(
     internal var order: List<Int> by mutableStateOf(initialOrder)
         private set
 
-    internal var lastMove: Move = Move.NONE
-        private set
+    /** Offset of the card pulled in from the back by a reverse drag, read in layout and draw only. */
+    internal var pull: Offset? by mutableStateOf(null)
 
-    internal var lastDirection: DragDirection = DragDirection.LEFT
-        private set
+    /** Item index of the pulled card. */
+    internal var pulledItem: Int = -1
+
+    /** Spring of the pulled card after release. */
+    internal var pullJob: Job? = null
 
     /** Index in the item list of the front card, `-1` for an empty stack. */
     public val frontIndex: Int get() = order.firstOrNull() ?: -1
@@ -51,15 +51,12 @@ public class CardStackState internal constructor(
         isExpanded = false
     }
 
-    internal fun rotate(steps: Int, direction: DragDirection = DragDirection.LEFT) {
-        lastDirection = direction
-        lastMove = if (steps < 0) Move.REVERSE else Move.FORWARD
+    internal fun rotate(steps: Int) {
         order = rotate(order, steps)
     }
 
     internal fun sync(size: Int) {
         if (order.size == size && order.all { it < size }) return
-        lastMove = Move.NONE
         order = reconcile(order, size)
     }
 

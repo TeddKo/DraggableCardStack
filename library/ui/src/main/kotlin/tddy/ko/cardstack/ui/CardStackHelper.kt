@@ -148,6 +148,42 @@ internal fun swipeDirection(
     }
 }
 
+/**
+ * Whether the accumulated drag is a reverse drag, LEFT or DOWN on the dominant axis, the axis
+ * choice being the one of [swipeDirection].
+ *
+ * @param drag The accumulated drag vector
+ * @return True for a LEFT or DOWN drag
+ **/
+internal fun isReverse(drag: Offset): Boolean =
+    if (drag.x.absoluteValue >= drag.y.absoluteValue) drag.x < 0f else drag.y > 0f
+
+/**
+ * Resting offset of the pulled card before any drag, one card extent off to the side opposite to
+ * the swipe, the right for LEFT and the top for DOWN.
+ *
+ * @param drag The accumulated reverse drag vector
+ * @param size The card size
+ * @return The offset of the pulled card relative to its resting point
+ **/
+internal fun pullStart(drag: Offset, size: Size): Offset =
+    if (drag.x.absoluteValue >= drag.y.absoluteValue) Offset(size.width, 0f) else Offset(0f, -size.height)
+
+/**
+ * Offset of the card pulled in by a reverse drag, following the finger from [pullStart] and never
+ * passing its resting point along the drag axis.
+ *
+ * @param drag The accumulated drag vector
+ * @param size The card size
+ * @return The offset relative to the resting point or null when the drag is not a reverse drag
+ **/
+internal fun pullOffset(drag: Offset, size: Size): Offset? {
+    if (!isReverse(drag)) return null
+    val pulled = pullStart(drag, size) + drag
+    return if (drag.x.absoluteValue >= drag.y.absoluteValue) pulled.copy(x = pulled.x.coerceAtLeast(0f))
+    else pulled.copy(y = pulled.y.coerceAtMost(0f))
+}
+
 
 private const val FanStepRatio = 0.25f
 

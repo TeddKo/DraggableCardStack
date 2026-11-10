@@ -150,4 +150,35 @@ class GeometryTest {
         assertEquals(50f, expandedStep(30f, 200f), 0f)
         assertEquals(60f, expandedStep(60f, 200f), 0f)
     }
+
+    @Test
+    fun isReverse_followsDominantAxisAndSign() {
+        assertTrue(isReverse(Offset(-10f, 3f)))
+        assertTrue(isReverse(Offset(2f, 10f)))
+        assertTrue(!isReverse(Offset(10f, -3f)))
+        assertTrue(!isReverse(Offset(-2f, -10f)))
+        assertTrue(!isReverse(Offset.Zero))
+    }
+
+    @Test
+    fun pullOffset_leftDragEntersFromRightAndFollowsFinger() {
+        val size = Size(300f, 200f)
+        assertNull(pullOffset(Offset(10f, 0f), size))
+        assertEquals(Offset(250f, 5f), pullOffset(Offset(-50f, 5f), size))
+        assertEquals(Offset(0f, 5f), pullOffset(Offset(-400f, 5f), size))
+    }
+
+    @Test
+    fun pullOffset_downDragEntersFromTopAndStopsAtRest() {
+        val size = Size(300f, 200f)
+        assertEquals(Offset(4f, -150f), pullOffset(Offset(4f, 50f), size))
+        assertEquals(Offset(4f, 0f), pullOffset(Offset(4f, 500f), size))
+    }
+
+    @Test
+    fun pullStart_isOneExtentOppositeToSwipe() {
+        val size = Size(300f, 200f)
+        assertEquals(Offset(300f, 0f), pullStart(Offset(-50f, 5f), size))
+        assertEquals(Offset(0f, -200f), pullStart(Offset(4f, 50f), size))
+    }
 }

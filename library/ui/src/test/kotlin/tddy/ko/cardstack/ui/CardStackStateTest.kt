@@ -43,7 +43,6 @@ class CardStackStateTest {
         state.rotate(1)
         assertEquals(1, state.frontIndex)
         assertEquals(listOf(1, 2, 0), state.order)
-        assertEquals(Move.FORWARD, state.lastMove)
     }
 
     @Test
@@ -52,15 +51,6 @@ class CardStackStateTest {
         state.sync(3)
         state.rotate(-1)
         assertEquals(listOf(2, 0, 1), state.order)
-        assertEquals(Move.REVERSE, state.lastMove)
-    }
-
-    @Test
-    fun rotateReverse_keepsReleaseDirection() {
-        val state = CardStackState()
-        state.sync(3)
-        state.rotate(-1, DragDirection.DOWN)
-        assertEquals(DragDirection.DOWN, state.lastDirection)
     }
 
     @Test
