@@ -50,47 +50,57 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
- * DraggableCardStack is a customizable composable that implements a stack of draggable cards
- * with smooth animations and gestures. It supports both vertical and horizontal swiping with
- * customizable alignment and spacing.
+ * DraggableCardStack is a stack of cards cycled by swiping the front card and expanded or
+ * collapsed by tapping.
  *
- * @param initialItems The initial list of items to display in the card stack
+ * @param initialItems The items of the stack, the card at the front being the first of the current order
  * @param height The height of each card in the stack
  * @param cardSpacingRatio The ratio that determines spacing between cards relative to screen height
- * @param cardAlignment The alignment of cards in the stack (TOP, BOTTOM, START, END, etc.)
- * @param dragAlignment The direction in which cards can be dragged (VERTICAL, HORIZONTAL, NONE)
+ * @param cardAlignment The side on which the back cards peek out (TOP, BOTTOM, START, END and corners)
+ * @param dragAlignment The axes along which the front card follows the finger
+ * @param modifier The modifier applied to the stack container
+ * @param state The state holder of the card order and expansion, exposing the front index
  * @param cardContent The composable content for each card
  *
- * Features:
- * - Smooth card animations with spring physics
- * - Customizable card alignment and spacing
- * - Support for both vertical and horizontal swiping
- * - Velocity-based swipe detection
- * - Automatic card reordering after swipe
- * - Elevation and scale animations
+ * Behavior:
+ * - Dragging the front card lifts and tilts it, and a release commits by drag distance (40% of the
+ *   card extent on the drag axis) or by velocity along the drag direction
+ * - RIGHT or UP moves the first card to the back, the card flying out along the release vector and
+ *   tucking behind the stack
+ * - LEFT or DOWN moves the last card to the front, the last card flying out of the stack and landing in front
+ * - With two cards a swipe in any direction flies the front card out and tucks it to the back
+ * - A new drag interrupts a running flight, so rapid flicks are never dropped
+ * - Tapping a collapsed stack expands it, tapping the front card of an expanded stack collapses it,
+ *   and tapping a back card of an expanded stack brings it to the front as many swipes as its depth
+ *   and collapses the stack
+ * - Expanded vertical alignments widen the card spacing and grow the stack height, START and END
+ *   spread the cards as a horizontal fan scaled to fit the stack width
+ * - A stack of fewer than two cards neither drags nor reacts to taps
+ *
+ * Notes:
+ * - The card order is an index permutation held in [state], so duplicate items are safe and the
+ *   order and expansion survive configuration change
+ * - A change of the item count keeps the order of the remaining cards and appends new cards at the back
+ * - [DragAlignment.NONE] lets the front card follow the finger on both axes
  *
  * Example usage:
  * ```
+ * val state = rememberCardStackState()
  * DraggableCardStack(
  *     initialItems = listOf("Card 1", "Card 2", "Card 3"),
  *     height = 200.dp,
  *     cardSpacingRatio = 0.1f,
  *     cardAlignment = CardAlignment.BOTTOM,
- *     dragAlignment = DragAlignment.HORIZONTAL
+ *     dragAlignment = DragAlignment.HORIZONTAL,
+ *     state = state
  * ) { item ->
- *     // Card content
  *     Text(text = item)
  * }
  * ```
  *
- * Notes:
- * - The card stack automatically handles device rotation and screen size changes
- * - Cards can be swiped when velocity exceeds the threshold or drag distance is sufficient
- * - Each card maintains its own state and animation properties
- * - The stack supports dynamic updates to the item list
- *
  * @see CardAlignment for available card alignment options
  * @see DragAlignment for available drag direction options
+ * @see CardStackState for the order and expansion state
  **/
 @Composable
 public fun <T> DraggableCardStack(

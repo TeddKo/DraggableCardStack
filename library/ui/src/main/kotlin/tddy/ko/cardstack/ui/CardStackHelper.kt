@@ -21,7 +21,7 @@ public enum class CardAlignment { BOTTOM, BOTTOM_START, BOTTOM_END, TOP, TOP_STA
 
 /**
  * Specifies the allowed drag directions for card interactions.
- * Controls how users can interact with and drag cards in the stack.
+ * Controls how users can interact with and drag cards in the stack, NONE following the finger on both axes.
  **/
 public enum class DragAlignment { VERTICAL, HORIZONTAL, NONE }
 
