@@ -269,3 +269,33 @@ internal fun reconcile(order: List<Int>, size: Int): List<Int> {
     val kept = order.filter { it < size }
     return kept + (0 until size).filter { it !in kept }
 }
+
+
+/**
+ * Decides whether a release commits a swipe, by drag distance or by velocity along the dominant
+ * drag axis, a velocity counting only in the direction of the drag.
+ *
+ * @param offset The drag offset at release
+ * @param velocity The release velocity
+ * @param commitDistance The per-axis drag distance that commits on its own
+ * @param velocityThreshold The per-axis release velocity that commits in the drag direction
+ * @return The committed direction or null when the release only springs back
+ **/
+internal fun swipeDirection(
+    offset: Offset,
+    velocity: Velocity,
+    commitDistance: Offset,
+    velocityThreshold: Float
+): DragDirection? {
+    val horizontal = offset.x.absoluteValue >= offset.y.absoluteValue
+    val o = if (horizontal) offset.x else offset.y
+    val v = if (horizontal) velocity.x else velocity.y
+    val distance = if (horizontal) commitDistance.x else commitDistance.y
+    if (o == 0f) return null
+    val committed = o.absoluteValue >= distance || (v.absoluteValue >= velocityThreshold && v * o > 0f)
+    return when {
+        !committed -> null
+        horizontal -> if (o > 0f) DragDirection.RIGHT else DragDirection.LEFT
+        else -> if (o > 0f) DragDirection.DOWN else DragDirection.UP
+    }
+}
