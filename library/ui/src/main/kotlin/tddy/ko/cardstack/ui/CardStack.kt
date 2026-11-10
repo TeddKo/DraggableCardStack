@@ -87,7 +87,7 @@ import kotlinx.coroutines.launch
  * @see DragAlignment for available drag direction options
  **/
 @Composable
-fun <T> DraggableCardStack(
+public fun <T> DraggableCardStack(
     initialItems: List<T>,
     height: Dp,
     cardSpacingRatio: Float,

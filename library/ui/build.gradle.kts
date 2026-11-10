@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+
 plugins {
     alias(libs.plugins.tddy.ko.android.library)
     alias(libs.plugins.tddy.ko.compose.library)
@@ -6,6 +8,14 @@ plugins {
 
 android {
     namespace = "tddy.ko.cardstack.ui"
+}
+
+kotlin {
+    explicitApi()
+    compilerOptions {
+        apiVersion.set(KotlinVersion.KOTLIN_2_2)
+        languageVersion.set(KotlinVersion.KOTLIN_2_2)
+    }
 }
 
 dependencies {

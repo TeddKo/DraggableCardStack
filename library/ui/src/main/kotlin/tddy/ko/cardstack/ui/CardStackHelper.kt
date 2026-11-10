@@ -12,19 +12,19 @@ import kotlin.math.pow
  * Represents the possible directions for card swiping gestures.
  * Used to determine and handle the direction of card movement during swipe animations.
  **/
-enum class DragDirection { LEFT, RIGHT, UP, DOWN }
+public enum class DragDirection { LEFT, RIGHT, UP, DOWN }
 
 /**
  * Defines the alignment options for cards within the stack.
  * Controls how cards are positioned and stacked relative to each other.
  **/
-enum class CardAlignment { BOTTOM, BOTTOM_START, BOTTOM_END, TOP, TOP_START, TOP_END, START, END }
+public enum class CardAlignment { BOTTOM, BOTTOM_START, BOTTOM_END, TOP, TOP_START, TOP_END, START, END }
 
 /**
  * Specifies the allowed drag directions for card interactions.
  * Controls how users can interact with and drag cards in the stack.
  **/
-enum class DragAlignment { VERTICAL, HORIZONTAL, NONE }
+public enum class DragAlignment { VERTICAL, HORIZONTAL, NONE }
 
 /**
  * Determines the swipe direction based on velocity and offset.
