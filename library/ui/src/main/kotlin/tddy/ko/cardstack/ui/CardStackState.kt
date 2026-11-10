@@ -57,6 +57,8 @@ public class CardStackState internal constructor(
     internal fun sync(size: Int) {
         if (order.size == size && order.all { it < size }) return
         order = reconcile(order, size)
+        pull = null
+        landing = null
     }
 
     internal companion object {

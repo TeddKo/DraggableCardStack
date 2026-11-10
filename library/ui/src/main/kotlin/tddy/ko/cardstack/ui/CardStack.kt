@@ -77,8 +77,9 @@ import kotlin.math.roundToInt
  *   front card, LEFT or DOWN past a dead zone picks the last card, and the picked card then follows
  *   the finger in every direction allowed by [DragAlignment] while the other one stays at rest
  * - The last card moves mirrored to the finger from behind the stack, to the right for LEFT and
- *   upwards for DOWN, a committed release carrying it one card extent out, onto the top and back in
- *   the swipe direction to the front, a cancelled one sliding it back behind the stack
+ *   upwards for DOWN, a committed release sliding it on to half a card extent out unless already
+ *   past, then onto the top and back in the swipe direction to the front, a cancelled one sliding it
+ *   back behind the stack
  * - A new drag interrupts a running flight, so rapid flicks are never dropped
  * - Tapping a collapsed stack expands it, tapping the front card of an expanded stack collapses it,
  *   and tapping a back card of an expanded stack brings it to the front as many swipes as its depth
@@ -233,8 +234,9 @@ public fun <T> DraggableCardStack(
  * - A forward swipe flies the card out along the release vector, then tucks it to the back
  * - Back cards stay at their slots while the front card is dragged and spring to the new slots when the order changes
  * - A reverse drag keeps this card at rest while the last card is offset by [CardStackState.pull]
- *   behind the stack, a committed pull carrying it fully out, turning it to the front and springing
- *   it to its slot, a cancelled one springing it back behind the stack
+ *   behind the stack, a committed pull sliding it on to half a card extent out unless already past,
+ *   turning it to the front and springing it to its slot, a cancelled one springing it back behind
+ *   the stack
  * - A tap expands the stack, collapses it from the front card, or lifts the tapped back card out of
  *   the stack, rotates it to the front as many swipes as its depth and lands it while the stack
  *   collapses, the tap animation running apart from the swipe flights so taps and drags stay live
@@ -266,21 +268,23 @@ private fun DraggableCard(
     var flight by remember { mutableStateOf<Job?>(null) }
     val tapTilt = remember { Animatable(0f) }
     var tapJob by remember { mutableStateOf<Job?>(null) }
+    var dragStart by remember { mutableStateOf(Offset.Zero) }
 
     val depth by animateFloatAsState(index.toFloat(), DepthSpring, label = "depth")
     var dragMode by remember { mutableStateOf<DragMode?>(null) }
     var land by remember { mutableStateOf(Offset.Zero) }
     var landJob by remember { mutableStateOf<Job?>(null) }
-    val pulling by remember { derivedStateOf { state.pull != null && state.pulledItem == itemIndex } }
+    val pulling by remember(state, itemIndex) { derivedStateOf { state.pull != null && state.pulledItem == itemIndex } }
     val lift by animateFloatAsState(
-        if ((isLifted && dragMode == DragMode.Forward) || pulling || landJob != null) 1f else 0f,
+        if ((isLifted && dragMode == DragMode.Forward) || pulling || landJob != null || tapJob != null) 1f else 0f,
         tween(durationMillis = 200),
         label = "lift"
     )
 
     fun heldOffset(): Offset = when {
         pulling -> state.pull ?: Offset.Zero
-        dragMode == DragMode.Reverse || (isLifted && dragMode == null) -> land
+        dragMode == DragMode.Reverse -> land
+        isLifted && dragMode == null -> land + dragStart
         else -> dragOffset + land
     }
 
@@ -291,6 +295,7 @@ private fun DraggableCard(
         state.landing = null
         if (state.pulledItem == itemIndex) state.pull = null
         landJob?.cancel()
+        heldZ = null
         landJob = scope.launch {
             val self = coroutineContext.job
             try {
@@ -311,7 +316,7 @@ private fun DraggableCard(
             } finally {
                 if (landJob === self) {
                     landJob = null
-                    if (flight == null) heldZ = null
+                    if (flight == null && tapJob == null) heldZ = null
                 }
             }
         }
@@ -361,13 +366,28 @@ private fun DraggableCard(
             DragAlignment.HORIZONTAL -> Offset(x = delta.x, y = 0f)
             DragAlignment.NONE -> delta
         }
-        if (dragMode == null && dragOffset != Offset.Zero) {
+        val moved = dragOffset - dragStart
+        if (dragMode == null && moved != Offset.Zero) {
             dragMode = when {
-                !isReverse(dragOffset) -> DragMode.Forward
-                isPastDeadZone(dragOffset, cardSize.toSize()) -> DragMode.Reverse
+                !isReverse(moved) -> DragMode.Forward
+                isPastDeadZone(moved, cardSize.toSize()) -> DragMode.Reverse
                 else -> null
             }
-            if (dragMode == DragMode.Reverse) state.pulledItem = state.order.last()
+            if (dragMode == DragMode.Reverse) {
+                state.pulledItem = state.order.last()
+                land += dragStart
+                dragOffset = moved
+                dragStart = Offset.Zero
+                landJob?.cancel()
+                landJob = scope.launch {
+                    val self = coroutineContext.job
+                    try {
+                        animate(Offset.VectorConverter, land, Offset.Zero, Offset.Zero, SettleSpring) { value, _ -> land = value }
+                    } finally {
+                        if (landJob === self) landJob = null
+                    }
+                }
+            }
             if (dragMode == DragMode.Forward) {
                 landJob?.cancel()
                 dragOffset += land
@@ -403,23 +423,27 @@ private fun DraggableCard(
                 onDragStarted = {
                     tapJob?.cancel()
                     flight?.cancel()
+                    dragStart = dragOffset
                     isLifted = true
                 },
                 onDragStopped = { velocity ->
                     isLifted = false
                     val release = Offset(velocity.x, velocity.y)
+                    val mode = dragMode
+                    dragMode = null
                     val direction = swipeDirection(
-                        offset = dragOffset,
+                        offset = if (mode == null) dragOffset - dragStart else dragOffset,
                         velocity = velocity,
                         commitDistance = Offset(cardSize.width * CommitRatio, cardSize.height * CommitRatio),
                         velocityThreshold = velocityThresholdPx
                     )
-                    val mode = dragMode
-                    dragMode = null
                     val isForward = direction == DragDirection.RIGHT || direction == DragDirection.UP
                     val isReverseSwipe = direction == DragDirection.LEFT || direction == DragDirection.DOWN
                     when {
-                        state.isExpanded -> settle(release)
+                        state.isExpanded -> {
+                            state.pull?.let { state.landing = Landing(state.pulledItem, it, release, false) }
+                            settle(release)
+                        }
                         mode == DragMode.Reverse || (mode == null && isReverseSwipe) -> {
                             dragOffset = Offset.Zero
                             val committed = if (isReverseSwipe) direction else null
@@ -470,25 +494,25 @@ private fun DraggableCard(
                     !state.isExpanded -> state.expand()
                     index == 0 -> state.collapse()
                     else -> {
-                        val steps = index
                         tapJob?.cancel()
                         tapJob = scope.launch {
+                            val self = coroutineContext.job
                             try {
                                 heldZ = itemCount + 1f
-                                isLifted = true
                                 val lifted = Offset(0f, -cardSize.height * TapLiftRatio)
                                 launch { tapTilt.animateTo(TapTiltDegrees, tween(TapLiftMillis)) }
                                 animate(Offset.VectorConverter, dragOffset, lifted, animationSpec = tween(TapLiftMillis)) { value, _ ->
                                     dragOffset = value
                                 }
-                                state.rotate(steps)
+                                state.order.indexOf(itemIndex).takeIf { it > 0 }?.let(state::rotate)
                                 state.collapse()
-                                isLifted = false
                                 launch { tapTilt.animateTo(0f, spring()) }
                                 slideTo(Offset.Zero, Offset.Zero, SettleSpring)
                             } finally {
-                                isLifted = false
-                                if (flight == null) heldZ = null
+                                if (tapJob === self) {
+                                    tapJob = null
+                                    if (flight == null) heldZ = null
+                                }
                                 withContext(NonCancellable) { tapTilt.snapTo(0f) }
                             }
                         }

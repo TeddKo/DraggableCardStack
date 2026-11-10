@@ -315,6 +315,24 @@ class DraggableCardStackUiTest {
     }
 
     @Test
+    fun tapBackCardExpanded_liftsItBeforeTheShuffle() {
+        setStack(listOf("a", "b", "c", "d"), CardStackState(), spacingRatio = 0.1f)
+        tapAt(cardHeight.value / 2)
+        val step = cardHeight.value * 0.25f
+        val before = composeRule.onNodeWithText("c").getUnclippedBoundsInRoot()
+        composeRule.mainClock.autoAdvance = false
+
+        composeRule.onNodeWithTag(StackTag).performTouchInput {
+            click(Offset(centerX, bottom - (cardHeight.value + 1.5f * step).dp.toPx()))
+        }
+        composeRule.mainClock.advanceTimeBy(150)
+
+        val lifted = composeRule.onNodeWithText("c").getUnclippedBoundsInRoot()
+        assertTrue("lifted $lifted before $before", lifted.top < before.top - 20.dp)
+        composeRule.mainClock.autoAdvance = true
+    }
+
+    @Test
     fun tapFrontExpanded_collapses() {
         val state = CardStackState()
         setStack(listOf("a", "b", "c"), state, spacingRatio = 0.1f)

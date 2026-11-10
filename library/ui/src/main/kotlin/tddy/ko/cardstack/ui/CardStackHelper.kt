@@ -118,7 +118,6 @@ internal fun reconcile(order: List<Int>, size: Int): List<Int> {
     return kept + (0 until size).filter { it !in kept }
 }
 
-
 /**
  * Decides whether a release commits a swipe, by drag distance or by velocity along the dominant
  * drag axis, a velocity counting only in the direction of the drag.
@@ -170,8 +169,8 @@ internal fun isPastDeadZone(drag: Offset, size: Size): Boolean =
     else drag.y.absoluteValue >= size.height * PullDeadZoneRatio
 
 /**
- * Offset of [pull] carried out to one card extent on its dominant axis, where the back card turns to
- * the top of the stack before landing in front.
+ * Offset of [pull] carried out to one card extent on its dominant axis, the back card turning to the
+ * top of the stack halfway there before landing in front.
  *
  * @param pull The current offset of the slid out card
  * @param size The card size
@@ -182,7 +181,6 @@ internal fun pullOut(pull: Offset, size: Size): Offset =
     else pull * (size.height / pull.y.absoluteValue)
 
 private const val PullDeadZoneRatio = 0.08f
-
 
 private const val FanStepRatio = 0.25f
 
