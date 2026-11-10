@@ -234,8 +234,9 @@ public fun <T> DraggableCardStack(
  * - A reverse drag keeps this card at rest while the last card is offset by [CardStackState.pull]
  *   behind the stack, a committed pull carrying it fully out, turning it to the front and springing
  *   it to its slot, a cancelled one springing it back behind the stack
- * - A tap expands the stack, collapses it from the front card, or lifts the tapped back card out of the stack,
- *   rotates it to the front as many swipes as its depth and lands it while the stack collapses
+ * - A tap expands the stack, collapses it from the front card, or rotates the tapped back card to the
+ *   front as many swipes as its depth and collapses the stack at once, the card hopping up on top and
+ *   landing in front while the stack closes
  **/
 @Composable
 private fun DraggableCard(
@@ -350,7 +351,6 @@ private fun DraggableCard(
             .draggable2D(
                 state = draggableState,
                 enabled = index == 0 && itemCount >= 2,
-                startDragImmediately = flight != null,
                 onDragStarted = {
                     state.pullJob?.cancel()
                     state.pull?.takeIf { state.pulledItem == itemIndex }?.let { dragOffset = it }
@@ -432,7 +432,8 @@ private fun DraggableCard(
                     !state.isExpanded -> state.expand()
                     index == 0 -> state.collapse()
                     else -> {
-                        val steps = index
+                        state.rotate(index)
+                        state.collapse()
                         launchFlight {
                             try {
                                 heldZ = itemCount + 1f
@@ -442,8 +443,6 @@ private fun DraggableCard(
                                 animate(Offset.VectorConverter, dragOffset, lifted, animationSpec = tween(TapLiftMillis)) { value, _ ->
                                     dragOffset = value
                                 }
-                                state.rotate(steps)
-                                state.collapse()
                                 isLifted = false
                                 launch { tapTilt.animateTo(0f, spring()) }
                                 slideTo(Offset.Zero, Offset.Zero, SettleSpring)
@@ -489,7 +488,7 @@ private const val MaxTiltDegrees = 10f
 private const val LiftTiltDegrees = 6f
 private const val TapTiltDegrees = 6f
 private const val TapLiftRatio = 0.35f
-private const val TapLiftMillis = 180
+private const val TapLiftMillis = 140
 private val ExpansionSpring = spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
 private val DepthSpring = spring<Float>(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)
 private val FlightSpring = spring<Offset>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
