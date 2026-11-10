@@ -159,19 +159,9 @@ internal fun isReverse(drag: Offset): Boolean =
     if (drag.x.absoluteValue >= drag.y.absoluteValue) drag.x < 0f else drag.y > 0f
 
 /**
- * Resting offset of the pulled card before any drag, one card extent off to the side opposite to
- * the swipe, the right for LEFT and the top for DOWN.
- *
- * @param drag The accumulated reverse drag vector
- * @param size The card size
- * @return The offset of the pulled card relative to its resting point
- **/
-internal fun pullStart(drag: Offset, size: Size): Offset =
-    if (drag.x.absoluteValue >= drag.y.absoluteValue) Offset(size.width, 0f) else Offset(0f, -size.height)
-
-/**
- * Offset of the card pulled in by a reverse drag, following the finger from [pullStart] once the drag
- * leaves a dead zone and never passing its resting point along the drag axis.
+ * Offset of the back card slid out from behind the stack by a reverse drag, mirroring the finger on
+ * the drag axis once the drag leaves a dead zone, to the right for LEFT and upwards for DOWN, at most
+ * one card extent.
  *
  * @param drag The accumulated drag vector
  * @param size The card size
@@ -179,30 +169,25 @@ internal fun pullStart(drag: Offset, size: Size): Offset =
  **/
 internal fun pullOffset(drag: Offset, size: Size): Offset? {
     if (!isReverse(drag)) return null
-    val horizontal = drag.x.absoluteValue >= drag.y.absoluteValue
-    val travelled = if (horizontal) -drag.x / size.width else drag.y / size.height
-    if (travelled < PullDeadZoneRatio) return null
-    val pulled = pullStart(drag, size) + drag
-    return if (horizontal) pulled.copy(x = pulled.x.coerceAtLeast(0f))
-    else pulled.copy(y = pulled.y.coerceAtMost(0f))
+    return if (drag.x.absoluteValue >= drag.y.absoluteValue) {
+        if (-drag.x < size.width * PullDeadZoneRatio) null else Offset((-drag.x).coerceAtMost(size.width), 0f)
+    } else {
+        if (drag.y < size.height * PullDeadZoneRatio) null else Offset(0f, -drag.y.coerceAtMost(size.height))
+    }
 }
 
 /**
- * Opacity of the pulled card, fading in over the first part of its way from [pullStart] so a
- * short drag or its spring back does not pop a card into view.
+ * Offset one card extent out on the side of [pull], where the back card turns to the top of the
+ * stack before landing in front.
  *
- * @param pull The offset of the pulled card relative to its resting point
+ * @param pull The current offset of the slid out card
  * @param size The card size
- * @return The opacity between 0 and 1
+ * @return The fully slid out offset
  **/
-internal fun pullAlpha(pull: Offset, size: Size): Float {
-    val travelled = if (pull.x != 0f) size.width - pull.x else size.height + pull.y
-    val extent = if (pull.x != 0f) size.width else size.height
-    return (travelled / (extent * PullFadeRatio)).coerceIn(0f, 1f)
-}
+internal fun pullOut(pull: Offset, size: Size): Offset =
+    if (pull.x != 0f) Offset(size.width, 0f) else Offset(0f, -size.height)
 
 private const val PullDeadZoneRatio = 0.08f
-private const val PullFadeRatio = 0.25f
 
 
 private const val FanStepRatio = 0.25f

@@ -161,11 +161,18 @@ class GeometryTest {
     }
 
     @Test
-    fun pullOffset_leftDragEntersFromRightAndFollowsFinger() {
+    fun pullOffset_leftDragMovesBackCardRightBehindStack() {
         val size = Size(300f, 200f)
         assertNull(pullOffset(Offset(10f, 0f), size))
-        assertEquals(Offset(250f, 5f), pullOffset(Offset(-50f, 5f), size))
-        assertEquals(Offset(0f, 5f), pullOffset(Offset(-400f, 5f), size))
+        assertEquals(Offset(50f, 0f), pullOffset(Offset(-50f, 5f), size))
+        assertEquals(Offset(300f, 0f), pullOffset(Offset(-400f, 5f), size))
+    }
+
+    @Test
+    fun pullOffset_downDragMovesBackCardUpBehindStack() {
+        val size = Size(300f, 200f)
+        assertEquals(Offset(0f, -50f), pullOffset(Offset(4f, 50f), size))
+        assertEquals(Offset(0f, -200f), pullOffset(Offset(4f, 500f), size))
     }
 
     @Test
@@ -176,26 +183,9 @@ class GeometryTest {
     }
 
     @Test
-    fun pullAlpha_fadesInFromTheStart() {
+    fun pullOut_isOneExtentOppositeToSwipe() {
         val size = Size(300f, 200f)
-        assertEquals(0f, pullAlpha(Offset(300f, 0f), size), 0.001f)
-        assertEquals(0f, pullAlpha(Offset(0f, -200f), size), 0.001f)
-        assertEquals(0.5f, pullAlpha(Offset(262.5f, 0f), size), 0.001f)
-        assertEquals(1f, pullAlpha(Offset(100f, 0f), size), 0.001f)
-        assertEquals(1f, pullAlpha(Offset.Zero, size), 0.001f)
-    }
-
-    @Test
-    fun pullOffset_downDragEntersFromTopAndStopsAtRest() {
-        val size = Size(300f, 200f)
-        assertEquals(Offset(4f, -150f), pullOffset(Offset(4f, 50f), size))
-        assertEquals(Offset(4f, 0f), pullOffset(Offset(4f, 500f), size))
-    }
-
-    @Test
-    fun pullStart_isOneExtentOppositeToSwipe() {
-        val size = Size(300f, 200f)
-        assertEquals(Offset(300f, 0f), pullStart(Offset(-50f, 5f), size))
-        assertEquals(Offset(0f, -200f), pullStart(Offset(4f, 50f), size))
+        assertEquals(Offset(300f, 0f), pullOut(Offset(50f, 0f), size))
+        assertEquals(Offset(0f, -200f), pullOut(Offset(0f, -50f), size))
     }
 }

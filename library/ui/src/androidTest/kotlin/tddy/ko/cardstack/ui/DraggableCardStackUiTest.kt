@@ -100,7 +100,7 @@ class DraggableCardStackUiTest {
     }
 
     @Test
-    fun leftDragWithoutRelease_keepsFrontAndPullsLastCard() {
+    fun leftDragWithoutRelease_keepsFrontAndSlidesLastCardRight() {
         setStack(listOf("a", "b", "c", "d"), CardStackState(), dragAlignment = DragAlignment.NONE)
         val front = composeRule.onNodeWithText("a").getUnclippedBoundsInRoot()
         val lastBefore = composeRule.onNodeWithText("d").getUnclippedBoundsInRoot()
@@ -113,7 +113,7 @@ class DraggableCardStackUiTest {
 
         assertEquals(front, composeRule.onNodeWithText("a").getUnclippedBoundsInRoot())
         val pulled = composeRule.onNodeWithText("d").getUnclippedBoundsInRoot()
-        assertTrue("pulled $pulled before $lastBefore", pulled.left > lastBefore.left + 100.dp)
+        assertTrue("pulled $pulled before $lastBefore", pulled.left > lastBefore.left + 40.dp)
         composeRule.onNodeWithTag(StackTag).performTouchInput { up() }
     }
 
