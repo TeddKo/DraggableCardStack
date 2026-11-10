@@ -48,9 +48,11 @@ import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.lerp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 /**
@@ -226,8 +228,8 @@ public fun <T> DraggableCardStack(
  * - Back cards stay at their slots while the front card is dragged and spring to the new slots when the order changes
  * - A reverse swipe springs the card to the second slot while the last card comes out from behind the stack on the
  *   side opposite to the swipe by one card extent, then lands in front moving in the swipe direction
- * - A tap expands the stack, collapses it from the front card, or brings the tapped back card to the
- *   front as many swipes as its depth
+ * - A tap expands the stack, collapses it from the front card, or lifts the tapped back card out of the stack,
+ *   rotates it to the front as many swipes as its depth and lands it while the stack collapses
  **/
 @Composable
 private fun DraggableCard(
@@ -400,11 +402,25 @@ private fun DraggableCard(
                     !state.isExpanded -> state.expand()
                     index == 0 -> state.collapse()
                     else -> {
-                        state.rotate(index)
-                        state.collapse()
-                        scope.launch {
-                            tapTilt.snapTo(TapTiltDegrees)
-                            tapTilt.animateTo(0f, spring())
+                        val steps = index
+                        launchFlight {
+                            try {
+                                heldZ = itemCount + 1f
+                                isLifted = true
+                                val lifted = Offset(0f, -cardSize.height * TapLiftRatio)
+                                launch { tapTilt.animateTo(TapTiltDegrees, tween(TapLiftMillis)) }
+                                animate(Offset.VectorConverter, dragOffset, lifted, animationSpec = tween(TapLiftMillis)) { value, _ ->
+                                    dragOffset = value
+                                }
+                                state.rotate(steps)
+                                state.collapse()
+                                isLifted = false
+                                launch { tapTilt.animateTo(0f, spring()) }
+                                slideTo(Offset.Zero, Offset.Zero, SettleSpring)
+                            } finally {
+                                isLifted = false
+                                withContext(NonCancellable) { tapTilt.snapTo(0f) }
+                            }
                         }
                     }
                 }
@@ -442,6 +458,8 @@ private const val LiftScale = 0.03f
 private const val MaxTiltDegrees = 10f
 private const val LiftTiltDegrees = 6f
 private const val TapTiltDegrees = 6f
+private const val TapLiftRatio = 0.35f
+private const val TapLiftMillis = 180
 private val ExpansionSpring = spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
 private val DepthSpring = spring<Float>(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)
 private val FlightSpring = spring<Offset>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
