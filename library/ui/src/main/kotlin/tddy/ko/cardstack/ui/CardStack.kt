@@ -93,9 +93,12 @@ public fun <T> DraggableCardStack(
     cardSpacingRatio: Float,
     cardAlignment: CardAlignment,
     dragAlignment: DragAlignment,
+    modifier: Modifier = Modifier,
+    state: CardStackState = rememberCardStackState(),
     cardContent: @Composable BoxScope.(T) -> Unit
 ) {
-    var items by remember { mutableStateOf(initialItems) }
+    state.sync(initialItems.size)
+    val order = state.order
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -105,12 +108,12 @@ public fun <T> DraggableCardStack(
     val velocityThreshold =
         remember(screenWidth, screenHeight) { minOf(screenWidth, screenHeight) * 0.6f }
 
-    val stackedHeight by remember(items.size, cardSpacing, cardAlignment) {
+    val stackedHeight by remember(order.size, cardSpacing, cardAlignment) {
         derivedStateOf {
             when (cardAlignment) {
                 CardAlignment.BOTTOM, CardAlignment.BOTTOM_START, CardAlignment.BOTTOM_END,
                 CardAlignment.TOP, CardAlignment.TOP_START, CardAlignment.TOP_END ->
-                    height + (cardSpacing * (items.size - 1))
+                    height + (cardSpacing * (order.size - 1))
 
                 CardAlignment.START, CardAlignment.END -> height
             }
@@ -132,48 +135,56 @@ public fun <T> DraggableCardStack(
     val (stackDragProgress, onDrag) = remember { mutableFloatStateOf(0f) }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(height = stackedHeight),
         contentAlignment = contentAlignment
     ) {
-        items
-            .asReversed()
-            .forEachIndexed { index, item ->
-                key(item) {
-                    DraggableCard(
-                        density = density,
-                        height = height,
-                        cardSpacing = cardSpacing,
-                        velocityThreshold = velocityThreshold,
-                        itemCount = items.size,
-                        index = items.size - 1 - index,
-                        cardAlignment = cardAlignment,
-                        dragAlignment = dragAlignment,
-                        stackDragProgress = stackDragProgress,
-                        onDrag = onDrag,
-                        onSwipe = { direction ->
-                            items = when (direction) {
-                                DragDirection.LEFT, DragDirection.DOWN -> items
-                                    .toMutableList()
-                                    .apply {
-                                        remove(items.last())
-                                        add(0, items.last())
-                                    }
-
-                                DragDirection.RIGHT, DragDirection.UP -> items
-                                    .toMutableList()
-                                    .apply {
-                                        remove(items.first())
-                                        add(items.first())
-                                    }
-                            }
-                        },
-                        content = { cardContent(item) }
-                    )
-                }
+        for (index in order.indices.reversed()) {
+            val itemIndex = order[index]
+            key(itemIndex) {
+                DraggableCard(
+                    density = density,
+                    height = height,
+                    cardSpacing = cardSpacing,
+                    velocityThreshold = velocityThreshold,
+                    itemCount = order.size,
+                    index = index,
+                    cardAlignment = cardAlignment,
+                    dragAlignment = dragAlignment,
+                    stackDragProgress = stackDragProgress,
+                    onDrag = onDrag,
+                    onSwipe = { direction ->
+                        when (direction) {
+                            DragDirection.LEFT, DragDirection.DOWN -> state.rotate(-1)
+                            DragDirection.RIGHT, DragDirection.UP -> state.rotate(1)
+                        }
+                    },
+                    content = { cardContent(initialItems[itemIndex]) }
+                )
             }
+        }
     }
+}
+
+/**
+ * Binary compatible entry point of 1.0.x, hidden from source so calls resolve to the overload
+ * with [CardStackState].
+ **/
+@Deprecated("Binary compatibility", level = DeprecationLevel.HIDDEN)
+@Composable
+public fun <T> DraggableCardStack(
+    initialItems: List<T>,
+    height: Dp,
+    cardSpacingRatio: Float,
+    cardAlignment: CardAlignment,
+    dragAlignment: DragAlignment,
+    cardContent: @Composable BoxScope.(T) -> Unit
+) {
+    DraggableCardStack(
+        initialItems, height, cardSpacingRatio, cardAlignment, dragAlignment,
+        Modifier, rememberCardStackState(), cardContent
+    )
 }
 
 /**
