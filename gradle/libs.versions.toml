@@ -1,22 +1,19 @@
 [versions]
-androidGradlePlugin = "8.7.1"
-jetbrainsKotlinJvm = "1.9.24"
-kotlin = "2.0.10"
-ksp = "2.0.10-1.0.24"
-androidDesugarJdkLibs = "2.1.2"
+androidGradlePlugin = "9.5.1"
+kotlin = "2.4.21"
+kotlinStdlib = "2.2.21"
 
-vankiktechMaven = "0.30.0"
+vankiktechMaven = "0.37.0"
+cardstack = "1.1.0"
 
-androidxCompose = "1.7.5"
-androidxCoreKtx = "1.15.0"
-androidxAppcompat = "1.7.0"
-androidxActivityCompose = "1.9.3"
+androidxCompose = "1.12.1"
+androidxMaterial3 = "1.4.0"
+androidxCoreKtx = "1.19.1"
+androidxActivityCompose = "1.13.0"
 
 junit = "4.13.2"
-junitVersion = "1.2.1"
-espressoCore = "3.6.1"
-
-material = "1.12.0"
+junitVersion = "1.3.0"
+androidxTestRunner = "1.7.0"
 
 coil = "3.0.0-rc01"
 
@@ -24,25 +21,23 @@ coil = "3.0.0-rc01"
 android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "androidGradlePlugin" }
 kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 compose-gradlePlugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
-ksp-gradlePlugin = { group = "com.google.devtools.ksp", name = "com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
-
-android-desugarJdkLibs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "androidDesugarJdkLibs" }
 
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCoreKtx" }
-androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "androidxAppcompat" }
 
 androidx-compose-activity = { group = "androidx.activity", name = "activity-compose", version.ref = "androidxActivityCompose" }
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "androidxCompose" }
 androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version.ref = "androidxCompose" }
 androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling", version.ref = "androidxCompose" }
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview", version.ref = "androidxCompose" }
-androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version = "1.3.0" }
+androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "androidxCompose" }
+androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "androidxCompose" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "androidxCompose" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "androidxMaterial3" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
-androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
 
-material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 coil = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 
 [plugins]
@@ -50,10 +45,6 @@ tddy-ko-android-application = { id = "tddy.ko.cardstack.application", version = 
 tddy-ko-android-library = { id = "tddy.ko.cardstack.library", version = "unspecified" }
 tddy-ko-compose-application = { id = "tddy.ko.cardstack.compose.application", version = "unspecified" }
 tddy-ko-compose-library = { id = "tddy.ko.cardstack.compose.library", version = "unspecified" }
-
-kotlin-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "jetbrainsKotlinJvm" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
 android-library = { id = "com.android.library", version.ref = "androidGradlePlugin" }

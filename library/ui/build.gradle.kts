@@ -1,4 +1,4 @@
-import com.vanniktech.maven.publish.SonatypeHost
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
     alias(libs.plugins.tddy.ko.android.library)
@@ -10,12 +10,36 @@ android {
     namespace = "tddy.ko.cardstack.ui"
 }
 
+kotlin {
+    coreLibrariesVersion = libs.versions.kotlinStdlib.get()
+    explicitApi()
+    compilerOptions {
+        apiVersion.set(KotlinVersion.KOTLIN_2_2)
+        languageVersion.set(KotlinVersion.KOTLIN_2_2)
+    }
+}
+
+dependencies {
+    api(libs.androidx.compose.ui)
+    api(libs.androidx.compose.foundation)
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
 
-    signAllPublications()
+    val toCentral = gradle.startParameter.taskNames.any { "MavenCentral" in it }
+    val hasKey = providers.gradleProperty("signingInMemoryKey").isPresent ||
+        providers.gradleProperty("signing.keyId").isPresent
+    if (toCentral || hasKey) {
+        signAllPublications()
+    }
 
-    coordinates("io.github.teddko", "cardstack", "1.0.0")
+    coordinates("io.github.teddko", "cardstack", libs.versions.cardstack.get())
 
     pom {
         name.set("CardStack")

@@ -3,7 +3,6 @@ package tddy.ko.cardstack.ui
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.GraphicsLayerScope
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Velocity
 import kotlin.math.absoluteValue
 import kotlin.math.pow
@@ -12,192 +11,41 @@ import kotlin.math.pow
  * Represents the possible directions for card swiping gestures.
  * Used to determine and handle the direction of card movement during swipe animations.
  **/
-enum class DragDirection { LEFT, RIGHT, UP, DOWN }
+public enum class DragDirection { LEFT, RIGHT, UP, DOWN }
 
 /**
  * Defines the alignment options for cards within the stack.
  * Controls how cards are positioned and stacked relative to each other.
  **/
-enum class CardAlignment { BOTTOM, BOTTOM_START, BOTTOM_END, TOP, TOP_START, TOP_END, START, END }
+public enum class CardAlignment { BOTTOM, BOTTOM_START, BOTTOM_END, TOP, TOP_START, TOP_END, START, END }
 
 /**
  * Specifies the allowed drag directions for card interactions.
- * Controls how users can interact with and drag cards in the stack.
+ * Controls how users can interact with and drag cards in the stack, NONE following the finger on both axes.
  **/
-enum class DragAlignment { VERTICAL, HORIZONTAL, NONE }
-
-/**
- * Determines the swipe direction based on velocity and offset.
- *
- * @param velocity The velocity of the drag gesture
- * @param offset The current offset of the drag
- * @return The determined DragDirection or null if not exceeding thresholds
- **/
-internal fun determineSwipeDirection(velocity: Velocity, offset: Offset): DragDirection? {
-    val isHorizontal = velocity.x.absoluteValue > velocity.y.absoluteValue
-    return when {
-        isHorizontal && velocity.x > 0 && offset.x > 0 -> DragDirection.RIGHT
-        isHorizontal && velocity.x < 0 && offset.x < 0 -> DragDirection.LEFT
-        !isHorizontal && velocity.y > 0 && offset.y > 0 -> DragDirection.DOWN
-        !isHorizontal && velocity.y < 0 && offset.y < 0 -> DragDirection.UP
-        else -> null
-    }
-}
-
-/**
- * Checks if the swipe velocity exceeds the defined threshold.
- *
- * @param velocity The velocity of the drag gesture
- * @param velocityThresholdPx The threshold value in pixels
- * @return True if the velocity exceeds the threshold
- **/
-internal fun isSwipeVelocityExceeded(velocity: Velocity, velocityThresholdPx: Float): Boolean =
-    velocity.x.absoluteValue > velocityThresholdPx || velocity.y.absoluteValue > velocityThresholdPx
-
-/**
- * Calculates the target offset for card animation based on swipe direction.
- *
- * @param direction The direction of the swipe
- * @param size The size of the card
- * @param offset The current offset
- * @param cardAlignment The alignment of cards in the stack
- * @return The target offset for the animation
- **/
-internal fun calculateTargetOffset(
-    direction: DragDirection,
-    size: IntSize,
-    offset: Offset,
-    cardAlignment: CardAlignment
-): Offset = when (direction) {
-    DragDirection.LEFT -> Offset(-size.width.toFloat() * 1.5f, offset.y)
-    DragDirection.RIGHT -> Offset(size.width.toFloat() * 1.5f, offset.y)
-    DragDirection.UP -> Offset(offset.x, calculateVerticalOffset(cardAlignment, size, offset))
-    DragDirection.DOWN -> Offset(offset.x, size.height.toFloat() * 1.5f)
-}
-
-/**
- * Calculates the vertical offset for card animation based on alignment.
- *
- * @param cardAlignment The alignment of cards in the stack
- * @param size The size of the card
- * @param offset The current offset
- * @return The calculated vertical offset
- **/
-internal fun calculateVerticalOffset(
-    cardAlignment: CardAlignment,
-    size: IntSize,
-    offset: Offset
-): Float = when (cardAlignment) {
-    CardAlignment.BOTTOM, CardAlignment.BOTTOM_START, CardAlignment.BOTTOM_END -> -size.height.toFloat() * 1.5f
-    else -> offset.y
-}
-
-/**
- * Calculates the swipe progress as a normalized value between -1 and 1.
- *
- * @param offset The current drag offset
- * @param velocityThresholdPx The velocity threshold in pixels
- * @return The normalized swipe progress
- **/
-internal fun calculateSwipeProgress(offset: Offset, velocityThresholdPx: Float): Float {
-    val xProgress = offset.x / velocityThresholdPx
-    val yProgress = offset.y / velocityThresholdPx
-    return when {
-        xProgress.absoluteValue > yProgress.absoluteValue -> xProgress.coerceIn(-1f, 1f)
-        else -> -yProgress.coerceIn(-1f, 1f)
-    }
-}
-
-/**
- * Calculates the scale factor for each card in the stack.
- *
- * @param index The index of the card in the stack
- * @return The calculated scale factor
- **/
-internal fun calculateScales(index: Int, itemCount: Int, stackDragProgress: Float): Float {
-    val baseScale = 1f - (index * 0.05f)
-    val scaleIncrement = 0.05f * stackDragProgress
-    return when {
-        index > 0 -> baseScale + (scaleIncrement * (itemCount - index - 1))
-            .coerceAtMost(.05f)
-
-        else -> baseScale
-    }
-}
+public enum class DragAlignment { VERTICAL, HORIZONTAL, NONE }
 
 /**
  * Calculates the initial offset for each card based on its position in the stack.
  *
  * @param cardAlignment The alignment of cards in the stack
- * @param index The index of the card
+ * @param depth The animated position of the card in the stack, 0 being the front
  * @param spacingPx The spacing between cards in pixels
  * @return The calculated offset
  **/
 internal fun calculateLastOffset(
     cardAlignment: CardAlignment,
-    index: Int,
+    depth: Float,
     spacingPx: Float
 ): Offset = when (cardAlignment) {
-    CardAlignment.TOP -> Offset(0f, spacingPx * index)
-    CardAlignment.TOP_START -> Offset(-spacingPx * index, spacingPx * index)
-    CardAlignment.TOP_END -> Offset(spacingPx * index, spacingPx * index)
-    CardAlignment.BOTTOM -> Offset(0f, -spacingPx * index)
-    CardAlignment.BOTTOM_START -> Offset(-spacingPx * index, -spacingPx * index)
-    CardAlignment.BOTTOM_END -> Offset(spacingPx * index, -spacingPx * index)
-    CardAlignment.START -> Offset(-spacingPx * index, 0f)
-    CardAlignment.END -> Offset(spacingPx * index, 0f)
-}
-
-/**
- * Calculates the offset during drag operations based on stack configuration.
- *
- * @param stackDragProgress The current drag progress
- * @param index Card index in the stack
- * @param spacingPx Spacing between cards
- * @param itemCount Total number of cards
- * @param cardAlignment Stack alignment
- * @return The calculated drag-based offset
- **/
-internal fun calculateDragBasedOffset(
-    stackDragProgress: Float,
-    index: Int,
-    spacingPx: Float,
-    itemCount: Int,
-    cardAlignment: CardAlignment
-): Offset {
-    val progress = if (index == itemCount - 1 && stackDragProgress < 0f) {
-        (-stackDragProgress).coerceIn(0f, 1f)
-    } else {
-        (stackDragProgress * (1f - (index.toFloat() / itemCount))).coerceIn(-1f, 1f)
-    }
-
-    val easedProgress = progress * progress * (3 - 2 * progress)
-
-    return when (cardAlignment) {
-        CardAlignment.TOP -> Offset(
-            0f,
-            spacingPx * easedProgress * if (index == itemCount - 1 && stackDragProgress < 0f) 1f else -1f
-        )
-        CardAlignment.BOTTOM -> Offset(0f, spacingPx * easedProgress)
-        CardAlignment.TOP_START -> Offset(
-            spacingPx * easedProgress,
-            -spacingPx * easedProgress
-        )
-        CardAlignment.BOTTOM_START -> Offset(
-            spacingPx * easedProgress,
-            spacingPx * easedProgress
-        )
-        CardAlignment.TOP_END -> Offset(
-            -spacingPx * easedProgress,
-            -spacingPx * easedProgress
-        )
-        CardAlignment.BOTTOM_END -> Offset(
-            -spacingPx * easedProgress,
-            spacingPx * easedProgress
-        )
-        CardAlignment.START -> Offset(spacingPx * easedProgress, 0f)
-        CardAlignment.END -> Offset(-spacingPx * easedProgress, 0f)
-    }
+    CardAlignment.TOP -> Offset(0f, spacingPx * depth)
+    CardAlignment.TOP_START -> Offset(-spacingPx * depth, spacingPx * depth)
+    CardAlignment.TOP_END -> Offset(spacingPx * depth, spacingPx * depth)
+    CardAlignment.BOTTOM -> Offset(0f, -spacingPx * depth)
+    CardAlignment.BOTTOM_START -> Offset(-spacingPx * depth, -spacingPx * depth)
+    CardAlignment.BOTTOM_END -> Offset(spacingPx * depth, -spacingPx * depth)
+    CardAlignment.START -> Offset(-spacingPx * depth, 0f)
+    CardAlignment.END -> Offset(spacingPx * depth, 0f)
 }
 
 /**
@@ -241,5 +89,156 @@ internal fun GraphicsLayerScope.applyAlignmentAdjustment(
 
         CardAlignment.START -> translationX -= widthAdjustment
         CardAlignment.END -> translationX += widthAdjustment
+    }
+}
+
+/**
+ * Rotates the card order, a positive [steps] being as many forward swipes (first to back) and a
+ * negative one as many reverse swipes (last to front).
+ *
+ * @param order The current permutation of item indices
+ * @param steps The signed number of forward swipes
+ * @return The rotated permutation
+ **/
+internal fun rotate(order: List<Int>, steps: Int): List<Int> {
+    if (order.isEmpty()) return order
+    val k = steps.mod(order.size)
+    return order.drop(k) + order.take(k)
+}
+
+/**
+ * Fits the card order to a new item count, keeping the surviving order and appending new indices.
+ *
+ * @param order The current permutation of item indices
+ * @param size The new item count
+ * @return A permutation of `0 until size`
+ **/
+internal fun reconcile(order: List<Int>, size: Int): List<Int> {
+    val kept = order.filter { it < size }
+    return kept + (0 until size).filter { it !in kept }
+}
+
+/**
+ * Decides whether a release commits a swipe, by drag distance or by velocity along the dominant
+ * drag axis, a velocity counting only in the direction of the drag.
+ *
+ * @param offset The drag offset at release
+ * @param velocity The release velocity
+ * @param commitDistance The per-axis drag distance that commits on its own
+ * @param velocityThreshold The per-axis release velocity that commits in the drag direction
+ * @return The committed direction or null when the release only springs back
+ **/
+internal fun swipeDirection(
+    offset: Offset,
+    velocity: Velocity,
+    commitDistance: Offset,
+    velocityThreshold: Float
+): DragDirection? {
+    val horizontal = offset.x.absoluteValue >= offset.y.absoluteValue
+    val o = if (horizontal) offset.x else offset.y
+    val v = if (horizontal) velocity.x else velocity.y
+    val distance = if (horizontal) commitDistance.x else commitDistance.y
+    if (o == 0f) return null
+    val committed = o.absoluteValue >= distance || (v.absoluteValue >= velocityThreshold && v * o > 0f)
+    return when {
+        !committed -> null
+        horizontal -> if (o > 0f) DragDirection.RIGHT else DragDirection.LEFT
+        else -> if (o > 0f) DragDirection.DOWN else DragDirection.UP
+    }
+}
+
+/**
+ * Whether the accumulated drag is a reverse drag, LEFT or DOWN on the dominant axis, the axis
+ * choice being the one of [swipeDirection].
+ *
+ * @param drag The accumulated drag vector
+ * @return True for a LEFT or DOWN drag
+ **/
+internal fun isReverse(drag: Offset): Boolean =
+    if (drag.x.absoluteValue >= drag.y.absoluteValue) drag.x < 0f else drag.y > 0f
+
+/**
+ * Whether the drag left the dead zone on its dominant axis, so touch jitter never starts a reverse drag.
+ *
+ * @param drag The accumulated drag vector
+ * @param size The card size
+ * @return True once the dominant axis travel reaches the dead zone
+ **/
+internal fun isPastDeadZone(drag: Offset, size: Size): Boolean =
+    if (drag.x.absoluteValue >= drag.y.absoluteValue) drag.x.absoluteValue >= size.width * PullDeadZoneRatio
+    else drag.y.absoluteValue >= size.height * PullDeadZoneRatio
+
+/**
+ * Offset of [pull] carried out to one card extent on its dominant axis, the back card turning to the
+ * top of the stack halfway there before landing in front.
+ *
+ * @param pull The current offset of the slid out card
+ * @param size The card size
+ * @return The fully slid out offset
+ **/
+internal fun pullOut(pull: Offset, size: Size): Offset =
+    if (pull.x.absoluteValue >= pull.y.absoluteValue) pull * (size.width / pull.x.absoluteValue)
+    else pull * (size.height / pull.y.absoluteValue)
+
+private const val PullDeadZoneRatio = 0.08f
+
+private const val FanStepRatio = 0.25f
+
+/**
+ * Distance between expanded cards along the main axis of a vertical stack, at least the collapsed
+ * spacing.
+ *
+ * @param spacingPx The collapsed spacing in pixels
+ * @param cardHeightPx The card height in pixels
+ * @return The expanded step in pixels
+ **/
+internal fun expandedStep(spacingPx: Float, cardHeightPx: Float): Float =
+    maxOf(spacingPx, FanStepRatio * cardHeightPx)
+
+/**
+ * Calculates the scale of every card of the expanded stack. A START or END fan shrinks the cards so
+ * that the whole fan fits the card width, the other alignments keep the full size.
+ *
+ * @param cardAlignment The alignment of cards in the stack
+ * @param itemCount Total number of cards
+ * @return The expanded scale factor
+ **/
+internal fun calculateExpandedScale(cardAlignment: CardAlignment, itemCount: Int): Float = when (cardAlignment) {
+    CardAlignment.START, CardAlignment.END -> 1f / (1f + FanStepRatio * (itemCount - 1))
+    else -> 1f
+}
+
+/**
+ * Calculates the offset of a card of the expanded stack. Vertical alignments widen the vertical
+ * step and keep the horizontal peek, START and END lay the cards out as a horizontal fan whose
+ * outer edges coincide with the card edges.
+ *
+ * @param cardAlignment The alignment of cards in the stack
+ * @param depth The animated position of the card in the stack, 0 being the front
+ * @param spacingPx The collapsed spacing in pixels
+ * @param cardSize The size of the card
+ * @param itemCount Total number of cards
+ * @return The expanded offset
+ **/
+internal fun calculateExpandedOffset(
+    cardAlignment: CardAlignment,
+    depth: Float,
+    spacingPx: Float,
+    cardSize: Size,
+    itemCount: Int
+): Offset {
+    val peek = calculateLastOffset(cardAlignment, 1f, 1f)
+    return when (cardAlignment) {
+        CardAlignment.START, CardAlignment.END -> {
+            val scale = calculateExpandedScale(cardAlignment, itemCount)
+            val inset = cardSize.width * (1f - scale)
+            val step = FanStepRatio * scale * cardSize.width
+            Offset(-peek.x * inset + peek.x * depth * step, 0f)
+        }
+
+        else -> Offset(
+            peek.x * depth * spacingPx,
+            peek.y * depth * expandedStep(spacingPx, cardSize.height)
+        )
     }
 }

@@ -6,3 +6,8 @@ plugins {
 android {
     namespace = "tddy.ko.cardstack.desigh_system"
 }
+
+dependencies {
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.core.ktx)
+}

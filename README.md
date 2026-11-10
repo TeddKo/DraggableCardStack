@@ -22,11 +22,13 @@ A <strong>Jetpack Compose</strong> library for customizable draggable card stack
 - 💫 Dynamic elevation & scale animations
 - ⚡ Velocity-based swipe detection
 - 🔄 Automatic card reordering
+- 👆 Tap to expand, tap a card to bring it to the front
+- ✋ Lift and tilt while dragging, real fly-out and tuck, interruptible flights
 
 ## Installation
 ```kotlin
 dependencies {
-    implementation("io.github.teddko:cardstack:1.0.1")
+    implementation("io.github.teddko:cardstack:1.1.0")
 }
 ```
 
@@ -56,6 +58,39 @@ fun CardStackDemo() {
     }
 }
 ```
+
+## Behavior
+- Dragging the front card lifts and tilts it while the back cards stay in place. A release commits by drag distance (40% of the card extent) or by velocity.
+- RIGHT or UP moves the first card to the back, LEFT or DOWN leaves the front card at rest and slides the last card out from behind the stack the other way (right for LEFT, up for DOWN), and a release slides it on to half a card out unless already past, then onto the top and back in the swipe direction to the front, or slides it back behind the stack. The first move of a drag picks the front or the last card, and that card follows the finger in every direction until release.
+- A new drag interrupts a running flight, so rapid flicks are never dropped.
+- Tapping a collapsed stack expands it. Tapping the front card of an expanded stack collapses it. Tapping a back card brings it to the front as many swipes as its depth, then collapses the stack.
+- START and END expand into a horizontal fan scaled to fit the stack width, the other alignments widen the spacing and grow the stack height.
+- A stack of fewer than two cards neither drags nor reacts to taps.
+
+## State
+```kotlin
+val state = rememberCardStackState()
+
+DraggableCardStack(
+    initialItems = items,
+    height = 200.dp,
+    cardSpacingRatio = 0.1f,
+    cardAlignment = CardAlignment.BOTTOM,
+    dragAlignment = DragAlignment.HORIZONTAL,
+    state = state
+) { item -> Text(item) }
+
+state.frontIndex   // index in items of the front card
+state.expand()
+state.collapse()
+```
+The order is an index permutation, so duplicate items are safe, and the order and expansion survive configuration change.
+
+## Upgrading to 1.1.0
+- The 1.0.x `DraggableCardStack` call keeps working, binary and source compatible. `modifier` and `state` are new optional parameters.
+- Minimum requirements: Kotlin 2.2, Compose 1.12.1, compileSdk 36 or higher.
+- material3, activity-compose, appcompat and core-ktx no longer come in transitively, declare them if your code uses them. Compose ui and foundation remain compile dependencies.
+- Taps are now consumed by the cards.
 
 ## Advanced Usage
 ```kotlin

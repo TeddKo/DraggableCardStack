@@ -10,11 +10,10 @@ class AndroidApplicationPlugin : Plugin<Project> {
         with(target) {
             pluginManager.apply {
                 apply(libs.plugin("android-application").pluginId)
-                apply(libs.plugin("kotlin-android").pluginId)
             }
             applicationExtension.apply {
                 configureAndroidExtension(this)
-                defaultConfig.targetSdk = 35
+                defaultConfig.targetSdk = 37
             }
         }
     }
