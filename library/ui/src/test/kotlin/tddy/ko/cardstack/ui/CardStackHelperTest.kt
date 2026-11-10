@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.Velocity
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -161,31 +162,19 @@ class GeometryTest {
     }
 
     @Test
-    fun pullOffset_leftDragMovesBackCardRightBehindStack() {
+    fun isPastDeadZone_measuresTheDominantAxis() {
         val size = Size(300f, 200f)
-        assertNull(pullOffset(Offset(10f, 0f), size))
-        assertEquals(Offset(50f, 0f), pullOffset(Offset(-50f, 5f), size))
-        assertEquals(Offset(300f, 0f), pullOffset(Offset(-400f, 5f), size))
+        assertFalse(isPastDeadZone(Offset(-20f, 0f), size))
+        assertFalse(isPastDeadZone(Offset(3f, 12f), size))
+        assertTrue(isPastDeadZone(Offset(-30f, 5f), size))
+        assertTrue(isPastDeadZone(Offset(4f, 20f), size))
     }
 
     @Test
-    fun pullOffset_downDragMovesBackCardUpBehindStack() {
-        val size = Size(300f, 200f)
-        assertEquals(Offset(0f, -50f), pullOffset(Offset(4f, 50f), size))
-        assertEquals(Offset(0f, -200f), pullOffset(Offset(4f, 500f), size))
-    }
-
-    @Test
-    fun pullOffset_insideDeadZone_isNull() {
-        val size = Size(300f, 200f)
-        assertNull(pullOffset(Offset(-20f, 0f), size))
-        assertNull(pullOffset(Offset(3f, 12f), size))
-    }
-
-    @Test
-    fun pullOut_isOneExtentOppositeToSwipe() {
+    fun pullOut_scalesToOneExtentOnTheDominantAxis() {
         val size = Size(300f, 200f)
         assertEquals(Offset(300f, 0f), pullOut(Offset(50f, 0f), size))
         assertEquals(Offset(0f, -200f), pullOut(Offset(0f, -50f), size))
+        assertEquals(Offset(300f, -60f), pullOut(Offset(50f, -10f), size))
     }
 }

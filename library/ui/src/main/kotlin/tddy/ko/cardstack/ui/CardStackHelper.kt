@@ -159,33 +159,27 @@ internal fun isReverse(drag: Offset): Boolean =
     if (drag.x.absoluteValue >= drag.y.absoluteValue) drag.x < 0f else drag.y > 0f
 
 /**
- * Offset of the back card slid out from behind the stack by a reverse drag, mirroring the finger on
- * the drag axis once the drag leaves a dead zone, to the right for LEFT and upwards for DOWN, at most
- * one card extent.
+ * Whether the drag left the dead zone on its dominant axis, so touch jitter never starts a reverse drag.
  *
  * @param drag The accumulated drag vector
  * @param size The card size
- * @return The offset relative to the resting point or null when the drag is not a reverse drag
+ * @return True once the dominant axis travel reaches the dead zone
  **/
-internal fun pullOffset(drag: Offset, size: Size): Offset? {
-    if (!isReverse(drag)) return null
-    return if (drag.x.absoluteValue >= drag.y.absoluteValue) {
-        if (-drag.x < size.width * PullDeadZoneRatio) null else Offset((-drag.x).coerceAtMost(size.width), 0f)
-    } else {
-        if (drag.y < size.height * PullDeadZoneRatio) null else Offset(0f, -drag.y.coerceAtMost(size.height))
-    }
-}
+internal fun isPastDeadZone(drag: Offset, size: Size): Boolean =
+    if (drag.x.absoluteValue >= drag.y.absoluteValue) drag.x.absoluteValue >= size.width * PullDeadZoneRatio
+    else drag.y.absoluteValue >= size.height * PullDeadZoneRatio
 
 /**
- * Offset one card extent out on the side of [pull], where the back card turns to the top of the
- * stack before landing in front.
+ * Offset of [pull] carried out to one card extent on its dominant axis, where the back card turns to
+ * the top of the stack before landing in front.
  *
  * @param pull The current offset of the slid out card
  * @param size The card size
  * @return The fully slid out offset
  **/
 internal fun pullOut(pull: Offset, size: Size): Offset =
-    if (pull.x != 0f) Offset(size.width, 0f) else Offset(0f, -size.height)
+    if (pull.x.absoluteValue >= pull.y.absoluteValue) pull * (size.width / pull.x.absoluteValue)
+    else pull * (size.height / pull.y.absoluteValue)
 
 private const val PullDeadZoneRatio = 0.08f
 

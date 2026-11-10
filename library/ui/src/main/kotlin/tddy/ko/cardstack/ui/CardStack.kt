@@ -72,12 +72,12 @@ import kotlin.math.roundToInt
  *   card extent on the drag axis) or by velocity along the drag direction
  * - RIGHT or UP moves the first card to the back, the card flying out along the release vector and
  *   tucking behind the stack
- * - LEFT or DOWN leaves the front card at rest and slides the last card out from behind the stack
- *   against the finger, to the right for LEFT and upwards for DOWN, a committed release carrying it
- *   one card extent out, onto the top and back in the swipe direction to the front, a cancelled one
- *   sliding it back behind the stack
- * - The drag direction is read from the accumulated drag vector, so a drag may switch between the
- *   two modes
+ * - The first move of a drag picks the dragged card and keeps it until release: RIGHT or UP picks the
+ *   front card, LEFT or DOWN past a dead zone picks the last card, and the picked card then follows
+ *   the finger in every direction allowed by [DragAlignment] while the other one stays at rest
+ * - The last card moves mirrored to the finger from behind the stack, to the right for LEFT and
+ *   upwards for DOWN, a committed release carrying it one card extent out, onto the top and back in
+ *   the swipe direction to the front, a cancelled one sliding it back behind the stack
  * - A new drag interrupts a running flight, so rapid flicks are never dropped
  * - Tapping a collapsed stack expands it, tapping the front card of an expanded stack collapses it,
  *   and tapping a back card of an expanded stack brings it to the front as many swipes as its depth
@@ -267,17 +267,17 @@ private fun DraggableCard(
     var tapJob by remember { mutableStateOf<Job?>(null) }
 
     val depth by animateFloatAsState(index.toFloat(), DepthSpring, label = "depth")
-    val reversing by remember { derivedStateOf { isReverse(dragOffset) } }
+    var dragMode by remember { mutableStateOf<DragMode?>(null) }
     val pulling by remember { derivedStateOf { state.pull != null && state.pulledItem == itemIndex } }
     val lift by animateFloatAsState(
-        if ((isLifted && !reversing) || pulling) 1f else 0f,
+        if ((isLifted && dragMode == DragMode.Forward) || pulling) 1f else 0f,
         tween(durationMillis = 200),
         label = "lift"
     )
 
     fun heldOffset(): Offset = when {
         pulling -> state.pull ?: Offset.Zero
-        reversing -> Offset.Zero
+        dragMode == DragMode.Reverse || (isLifted && dragMode == null) -> Offset.Zero
         else -> dragOffset
     }
 
@@ -325,9 +325,15 @@ private fun DraggableCard(
             DragAlignment.HORIZONTAL -> Offset(x = delta.x, y = 0f)
             DragAlignment.NONE -> delta
         }
-        val pull = pullOffset(dragOffset, cardSize.toSize())
-        if (pull != null) state.pulledItem = state.order.last()
-        state.pull = pull
+        if (dragMode == null && dragOffset != Offset.Zero) {
+            dragMode = when {
+                !isReverse(dragOffset) -> DragMode.Forward
+                isPastDeadZone(dragOffset, cardSize.toSize()) -> DragMode.Reverse
+                else -> null
+            }
+            if (dragMode == DragMode.Reverse) state.pulledItem = state.order.last()
+        }
+        if (dragMode == DragMode.Reverse) state.pull = -dragOffset
     }
 
     Box(
@@ -355,7 +361,10 @@ private fun DraggableCard(
                 startDragImmediately = flight != null,
                 onDragStarted = {
                     state.pullJob?.cancel()
-                    state.pull?.takeIf { state.pulledItem == itemIndex }?.let { dragOffset = it }
+                    state.pull?.takeIf { state.pulledItem == itemIndex }?.let {
+                        dragOffset = it
+                        dragMode = DragMode.Forward
+                    }
                     state.pull = null
                     tapJob?.cancel()
                     flight?.cancel()
@@ -370,18 +379,23 @@ private fun DraggableCard(
                         commitDistance = Offset(cardSize.width * CommitRatio, cardSize.height * CommitRatio),
                         velocityThreshold = velocityThresholdPx
                     )
+                    val mode = dragMode
+                    dragMode = null
+                    val isForward = direction == DragDirection.RIGHT || direction == DragDirection.UP
+                    val isReverseSwipe = direction == DragDirection.LEFT || direction == DragDirection.DOWN
                     when {
                         state.isExpanded -> settle(release)
-                        reversing -> {
+                        mode == DragMode.Reverse || (mode == null && isReverseSwipe) -> {
                             dragOffset = Offset.Zero
-                            val pulled = state.pull ?: when (direction) {
+                            val committed = if (isReverseSwipe) direction else null
+                            val pulled = state.pull ?: when (committed) {
                                 DragDirection.LEFT -> Offset(1f, 0f)
                                 DragDirection.DOWN -> Offset(0f, -1f)
                                 else -> null
                             }
                             if (state.pull == null && pulled != null) state.pulledItem = state.order.last()
                             state.pullJob = scope.launch {
-                                if (pulled != null && direction != null) {
+                                if (pulled != null && committed != null) {
                                     val out = pullOut(pulled, cardSize.toSize())
                                     launch turn@{
                                         animate(Offset.VectorConverter, pulled, out, -release, PullOutSpring) { value, _ ->
@@ -397,7 +411,7 @@ private fun DraggableCard(
                                 state.pull = null
                             }
                         }
-                        direction == null -> settle(release)
+                        !isForward -> settle(release)
                         else -> {
                             state.rotate(1)
                             val out = flyOutTarget(direction, cardSize, dragOffset)
@@ -501,3 +515,5 @@ private val FlightSpring = spring<Offset>(dampingRatio = Spring.DampingRatioNoBo
 private val PullOutSpring = spring<Offset>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
 private const val PullTurnRatio = 0.85f
 private val SettleSpring = spring<Offset>(dampingRatio = 0.8f, stiffness = 300f)
+
+private enum class DragMode { Forward, Reverse }

@@ -118,6 +118,25 @@ class DraggableCardStackUiTest {
     }
 
     @Test
+    fun forwardDragTurningLeft_keepsMovingTheFrontCard() {
+        setStack(listOf("a", "b", "c", "d"), CardStackState(), dragAlignment = DragAlignment.NONE)
+        val front = composeRule.onNodeWithText("a").getUnclippedBoundsInRoot()
+        val lastBefore = composeRule.onNodeWithText("d").getUnclippedBoundsInRoot()
+
+        composeRule.onNodeWithTag(StackTag).performTouchInput {
+            down(Offset(centerX, bottom - cardHeight.toPx() / 2))
+            repeat(5) { moveBy(Offset(8.dp.toPx(), 0f)) }
+            repeat(15) { moveBy(Offset(-8.dp.toPx(), 0f)) }
+        }
+        composeRule.waitForIdle()
+
+        val dragged = composeRule.onNodeWithText("a").getUnclippedBoundsInRoot()
+        assertTrue("front $dragged before $front", dragged.left < front.left - 40.dp)
+        assertEquals(lastBefore, composeRule.onNodeWithText("d").getUnclippedBoundsInRoot())
+        composeRule.onNodeWithTag(StackTag).performTouchInput { up() }
+    }
+
+    @Test
     fun shortLeftDrag_keepsOrder() {
         val state = CardStackState()
         setStack(listOf("a", "b", "c", "d"), state)
