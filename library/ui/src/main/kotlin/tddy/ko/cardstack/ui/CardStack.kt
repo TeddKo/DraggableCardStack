@@ -415,7 +415,7 @@ private fun DraggableCard(
                         else -> {
                             state.rotate(1)
                             val out = flyOutTarget(direction, cardSize, dragOffset)
-                            flyOut(out, out.getDistance().coerceAtMost(extentOf(direction, cardSize)), release, topFirst = true)
+                            flyOut(out, extentOf(direction, cardSize) * FlyPassRatio, release, topFirst = true)
                         }
                     }
                 }
@@ -503,6 +503,7 @@ private fun tilt(offset: Offset, size: IntSize): Float {
 
 private const val CommitRatio = 0.4f
 private const val FlyOutRatio = 1.2f
+private const val FlyPassRatio = 0.5f
 private const val LiftScale = 0.03f
 private const val MaxTiltDegrees = 10f
 private const val LiftTiltDegrees = 6f
@@ -511,9 +512,9 @@ private const val TapLiftRatio = 0.35f
 private const val TapLiftMillis = 180
 private val ExpansionSpring = spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
 private val DepthSpring = spring<Float>(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)
-private val FlightSpring = spring<Offset>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
+private val FlightSpring = spring<Offset>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
 private val PullOutSpring = spring<Offset>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
-private const val PullTurnRatio = 0.85f
+private const val PullTurnRatio = 0.5f
 private val SettleSpring = spring<Offset>(dampingRatio = 0.8f, stiffness = 300f)
 
 private enum class DragMode { Forward, Reverse }
