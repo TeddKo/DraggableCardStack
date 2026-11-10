@@ -1,5 +1,6 @@
 package tddy.ko.cardstack.ui
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animate
@@ -8,6 +9,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.draggable2D
 import androidx.compose.foundation.gestures.rememberDraggable2DState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,7 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableFloatState
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -29,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
@@ -37,7 +40,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.util.lerp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -108,17 +114,12 @@ public fun <T> DraggableCardStack(
     val velocityThreshold =
         remember(screenWidth, screenHeight) { minOf(screenWidth, screenHeight) * 0.6f }
 
-    val stackedHeight by remember(order.size, cardSpacing, cardAlignment) {
-        derivedStateOf {
-            when (cardAlignment) {
-                CardAlignment.BOTTOM, CardAlignment.BOTTOM_START, CardAlignment.BOTTOM_END,
-                CardAlignment.TOP, CardAlignment.TOP_START, CardAlignment.TOP_END ->
-                    height + (cardSpacing * (order.size - 1))
-
-                CardAlignment.START, CardAlignment.END -> height
-            }
-        }
-    }
+    val expansion = animateFloatAsState(
+        targetValue = if (state.isExpanded) 1f else 0f,
+        animationSpec = ExpansionSpring,
+        label = "expansion"
+    )
+    val isVertical = cardAlignment != CardAlignment.START && cardAlignment != CardAlignment.END
 
     val contentAlignment = remember(cardAlignment) {
         when (cardAlignment) {
@@ -137,7 +138,15 @@ public fun <T> DraggableCardStack(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(height = stackedHeight),
+            .layout { measurable, constraints ->
+                val heightPx = height.toPx()
+                val spacingPx = cardSpacing.toPx()
+                val step = spacingPx + (expandedStep(spacingPx, heightPx) - spacingPx) * expansion.value
+                val stackedPx = if (isVertical) heightPx + step * (order.size - 1) else heightPx
+                val fixed = constraints.constrainHeight(stackedPx.roundToInt())
+                val placeable = measurable.measure(constraints.copy(minHeight = fixed, maxHeight = fixed))
+                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            },
         contentAlignment = contentAlignment
     ) {
         for (index in order.indices.reversed()) {
@@ -154,6 +163,7 @@ public fun <T> DraggableCardStack(
                     cardAlignment = cardAlignment,
                     dragAlignment = dragAlignment,
                     stackDragProgress = stackDragProgress,
+                    expansion = expansion,
                     content = { cardContent(initialItems[itemIndex]) }
                 )
             }
@@ -194,14 +204,17 @@ public fun <T> DraggableCardStack(
  * @param cardAlignment Alignment of cards in the stack
  * @param dragAlignment Allowed drag directions
  * @param stackDragProgress Drag progress of the front card (-1 to 1), read by back cards at draw time
+ * @param expansion Animated expansion of the stack, 0 collapsed and 1 expanded
  * @param content Composable content to be displayed in the card
  *
  * Behavior:
- * - Only the front card is draggable, and a new drag interrupts any running flight
+ * - Only the front card of a collapsed stack is draggable, and a new drag interrupts any running flight
  * - Resting slot, drag offset and flights are applied in the placement phase, lift and tilt in
  *   the draw phase, so a drag does not recompose the content
  * - A forward swipe flies the card out along the release vector, then tucks it to the back
  * - A reverse swipe springs the card to the second slot while the last card flies out and lands in front
+ * - A tap expands the stack, collapses it from the front card, or brings the tapped back card to the
+ *   front as many swipes as its depth
  **/
 @Composable
 private fun DraggableCard(
@@ -215,6 +228,7 @@ private fun DraggableCard(
     cardAlignment: CardAlignment,
     dragAlignment: DragAlignment,
     stackDragProgress: MutableFloatState,
+    expansion: State<Float>,
     content: @Composable BoxScope.() -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -227,6 +241,7 @@ private fun DraggableCard(
     var heldZ by remember { mutableStateOf<Float?>(null) }
     var isLifted by remember { mutableStateOf(false) }
     var flight by remember { mutableStateOf<Job?>(null) }
+    val tapTilt = remember { Animatable(0f) }
     val previousIndex = remember { mutableIntStateOf(index) }
 
     val depth by animateFloatAsState(index.toFloat(), DepthSpring, label = "depth")
@@ -295,7 +310,11 @@ private fun DraggableCard(
             .layout { measurable, constraints ->
                 val placeable = measurable.measure(constraints)
                 layout(placeable.width, placeable.height) {
-                    val slot = calculateLastOffset(cardAlignment, depth, spacingPx) +
+                    val collapsed = calculateLastOffset(cardAlignment, depth, spacingPx)
+                    val expanded = calculateExpandedOffset(
+                        cardAlignment, depth, spacingPx, cardSize.toSize(), itemCount
+                    )
+                    val slot = lerp(collapsed, expanded, expansion.value) +
                         calculateDragBasedOffset(
                             stackDragProgress.floatValue, depth, spacingPx, itemCount, cardAlignment
                         ) + dragOffset
@@ -308,7 +327,7 @@ private fun DraggableCard(
             }
             .draggable2D(
                 state = draggableState,
-                enabled = index == 0 && itemCount >= 2,
+                enabled = index == 0 && itemCount >= 2 && !state.isExpanded,
                 startDragImmediately = flight != null,
                 onDragStarted = {
                     flight?.cancel()
@@ -342,14 +361,37 @@ private fun DraggableCard(
             .padding(horizontal = 12.dp)
             .onSizeChanged { cardSize = it }
             .graphicsLayer {
-                val scale = calculateScales(depth, itemCount, stackDragProgress.floatValue) + LiftScale * lift
+                val scale = lerp(
+                    calculateScales(depth, itemCount, stackDragProgress.floatValue),
+                    calculateExpandedScale(cardAlignment, itemCount),
+                    expansion.value
+                ) + LiftScale * lift
                 scaleX = scale
                 scaleY = scale
-                rotationZ = tilt(dragOffset, cardSize)
+                rotationZ = tilt(dragOffset, cardSize) + tapTilt.value
                 shadowElevation = (4f + 4f * lift).dp.toPx()
                 this.shape = shape
                 clip = true
                 applyAlignmentAdjustment(cardAlignment, scale, size)
+            }
+            .clickable(enabled = itemCount >= 2, interactionSource = null, indication = null) {
+                when {
+                    !state.isExpanded -> state.expand()
+                    index == 0 -> state.collapse()
+                    else -> {
+                        state.rotate(index)
+                        state.collapse()
+                        scope.launch {
+                            heldZ = itemCount + 1f
+                            try {
+                                tapTilt.snapTo(TapTiltDegrees)
+                                tapTilt.animateTo(0f, spring())
+                            } finally {
+                                heldZ = null
+                            }
+                        }
+                    }
+                }
             },
         contentAlignment = Alignment.Center,
         content = content
@@ -383,6 +425,8 @@ private const val FlyOutRatio = 1.2f
 private const val LiftScale = 0.03f
 private const val MaxTiltDegrees = 10f
 private const val LiftTiltDegrees = 6f
+private const val TapTiltDegrees = 6f
+private val ExpansionSpring = spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
 private val DepthSpring = spring<Float>(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)
 private val FlightSpring = spring<Offset>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
 private val SettleSpring = spring<Offset>(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)

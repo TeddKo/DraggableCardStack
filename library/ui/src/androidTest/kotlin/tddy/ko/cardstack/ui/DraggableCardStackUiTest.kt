@@ -14,7 +14,11 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeWithVelocity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.unit.height
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -31,12 +35,13 @@ class DraggableCardStackUiTest {
         state: CardStackState,
         cardAlignment: CardAlignment = CardAlignment.BOTTOM,
         dragAlignment: DragAlignment = DragAlignment.HORIZONTAL,
+        spacingRatio: Float = 0.5f,
     ) {
         composeRule.setContent {
             DraggableCardStack(
                 initialItems = items,
                 height = cardHeight,
-                cardSpacingRatio = 0.5f,
+                cardSpacingRatio = spacingRatio,
                 cardAlignment = cardAlignment,
                 dragAlignment = dragAlignment,
                 modifier = Modifier.testTag(StackTag),
@@ -150,6 +155,63 @@ class DraggableCardStackUiTest {
     }
 
     private var contentComposeCount = 0
+
+    private fun tapAt(yFromBottomDp: Float) {
+        composeRule.onNodeWithTag(StackTag).performTouchInput {
+            click(Offset(centerX, bottom - yFromBottomDp.dp.toPx()))
+        }
+        composeRule.waitForIdle()
+    }
+
+    private fun stackHeightDp() = composeRule.onNodeWithTag(StackTag).getUnclippedBoundsInRoot().height
+
+    @Test
+    fun tapCollapsed_BOTTOM_expandsAndGrows() {
+        val state = CardStackState()
+        setStack(listOf("a", "b", "c", "d"), state, spacingRatio = 0.1f)
+        val collapsed = stackHeightDp()
+
+        tapAt(cardHeight.value / 2)
+
+        assertTrue(state.isExpanded)
+        assertTrue(stackHeightDp() > collapsed)
+    }
+
+    @Test
+    fun tapBackCardExpanded_rotatesByDepthAndCollapses() {
+        val state = CardStackState()
+        setStack(listOf("a", "b", "c", "d"), state, spacingRatio = 0.1f)
+        tapAt(cardHeight.value / 2)
+        val step = cardHeight.value * 0.25f
+
+        tapAt(cardHeight.value + 1.5f * step)
+
+        assertEquals(2, state.frontIndex)
+        assertEquals(listOf(2, 3, 0, 1), state.order)
+        assertFalse(state.isExpanded)
+    }
+
+    @Test
+    fun tapFrontExpanded_collapses() {
+        val state = CardStackState()
+        setStack(listOf("a", "b", "c"), state, spacingRatio = 0.1f)
+        tapAt(cardHeight.value / 2)
+
+        tapAt(cardHeight.value / 2)
+
+        assertFalse(state.isExpanded)
+        assertEquals(0, state.frontIndex)
+    }
+
+    @Test
+    fun singleCard_tapDoesNothing() {
+        val state = CardStackState()
+        setStack(listOf("a"), state)
+
+        tapAt(cardHeight.value / 2)
+
+        assertFalse(state.isExpanded)
+    }
 
     private companion object {
         const val MaxGestureRecompositions = 2
