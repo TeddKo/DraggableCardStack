@@ -379,9 +379,13 @@ private fun DraggableCard(
                             if (state.pull == null && pulled != null) state.pulledItem = state.order.last()
                             state.pullJob = scope.launch {
                                 if (pulled != null && direction != null) {
-                                    animate(Offset.VectorConverter, pulled, pullOut(pulled, cardSize.toSize()), -release, FlightSpring) { value, _ ->
-                                        state.pull = value
-                                    }
+                                    val out = pullOut(pulled, cardSize.toSize())
+                                    launch turn@{
+                                        animate(Offset.VectorConverter, pulled, out, -release, PullOutSpring) { value, _ ->
+                                            state.pull = value
+                                            if (value.getDistance() >= out.getDistance() * PullTurnRatio) this@turn.cancel()
+                                        }
+                                    }.join()
                                     state.rotate(-1)
                                 }
                                 animate(Offset.VectorConverter, state.pull ?: Offset.Zero, Offset.Zero, Offset.Zero, SettleSpring) { value, _ ->
@@ -489,4 +493,6 @@ private const val TapLiftMillis = 180
 private val ExpansionSpring = spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
 private val DepthSpring = spring<Float>(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)
 private val FlightSpring = spring<Offset>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
+private val PullOutSpring = spring<Offset>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
+private const val PullTurnRatio = 0.85f
 private val SettleSpring = spring<Offset>(dampingRatio = 0.8f, stiffness = 300f)
