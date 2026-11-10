@@ -1,9 +1,11 @@
 package tddy.ko.cardstack.ui
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.Velocity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CardStackHelperTest {
@@ -84,5 +86,68 @@ class SwipeDirectionTest {
     @Test
     fun noMovement_isNull() {
         assertNull(swipeDirection(Offset.Zero, Velocity(900f, 0f), commit, threshold))
+    }
+}
+
+class GeometryTest {
+
+    private val spacing = 30f
+    private val card = Size(300f, 200f)
+
+    @Test
+    fun collapsedOffsets_matchLegacy_all8() {
+        val peek = mapOf(
+            CardAlignment.TOP to Offset(0f, 1f),
+            CardAlignment.BOTTOM to Offset(0f, -1f),
+            CardAlignment.START to Offset(-1f, 0f),
+            CardAlignment.END to Offset(1f, 0f),
+            CardAlignment.TOP_START to Offset(-1f, 1f),
+            CardAlignment.TOP_END to Offset(1f, 1f),
+            CardAlignment.BOTTOM_START to Offset(-1f, -1f),
+            CardAlignment.BOTTOM_END to Offset(1f, -1f),
+        )
+        CardAlignment.entries.forEach { alignment ->
+            val p = peek.getValue(alignment)
+            assertEquals(Offset(p.x * 2f * spacing, p.y * 2f * spacing), calculateLastOffset(alignment, 2f, spacing))
+        }
+    }
+
+    @Test
+    fun expandedStart_fanFitsWidth() {
+        (2..6).forEach { n ->
+            val k = calculateExpandedScale(CardAlignment.START, n)
+            val lefts = (0 until n).map { calculateExpandedOffset(CardAlignment.START, it.toFloat(), spacing, card, n).x }
+            assertEquals(0f, lefts.last(), 0.01f)
+            assertEquals(card.width, lefts.first() + k * card.width, 0.01f)
+        }
+    }
+
+    @Test
+    fun expandedEnd_fanFitsWidth() {
+        (2..6).forEach { n ->
+            val k = calculateExpandedScale(CardAlignment.END, n)
+            val rights = (0 until n).map { card.width + calculateExpandedOffset(CardAlignment.END, it.toFloat(), spacing, card, n).x }
+            assertEquals(card.width, rights.last(), 0.01f)
+            assertEquals(k * card.width, rights.first(), 0.01f)
+        }
+    }
+
+    @Test
+    fun expandedVertical_spacingNeverBelowCollapsed() {
+        listOf(10f, 30f, 120f).forEach { s ->
+            CardAlignment.entries.filter { it != CardAlignment.START && it != CardAlignment.END }.forEach { alignment ->
+                val collapsed = calculateLastOffset(alignment, 3f, s)
+                val expanded = calculateExpandedOffset(alignment, 3f, s, card, 4)
+                assertTrue(kotlin.math.abs(expanded.y) >= kotlin.math.abs(collapsed.y))
+                assertEquals(collapsed.x, expanded.x, 0.001f)
+                assertEquals(1f, calculateExpandedScale(alignment, 4), 0f)
+            }
+        }
+    }
+
+    @Test
+    fun expandedStep_isQuarterCardHeightAtLeastSpacing() {
+        assertEquals(50f, expandedStep(30f, 200f), 0f)
+        assertEquals(60f, expandedStep(60f, 200f), 0f)
     }
 }

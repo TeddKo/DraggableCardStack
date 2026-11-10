@@ -233,3 +233,65 @@ internal fun swipeDirection(
         else -> if (o > 0f) DragDirection.DOWN else DragDirection.UP
     }
 }
+
+
+private const val FanStepRatio = 0.25f
+
+/**
+ * Distance between expanded cards along the main axis of a vertical stack, at least the collapsed
+ * spacing.
+ *
+ * @param spacingPx The collapsed spacing in pixels
+ * @param cardHeightPx The card height in pixels
+ * @return The expanded step in pixels
+ **/
+internal fun expandedStep(spacingPx: Float, cardHeightPx: Float): Float =
+    maxOf(spacingPx, FanStepRatio * cardHeightPx)
+
+/**
+ * Calculates the scale of every card of the expanded stack. A START or END fan shrinks the cards so
+ * that the whole fan fits the card width, the other alignments keep the full size.
+ *
+ * @param cardAlignment The alignment of cards in the stack
+ * @param itemCount Total number of cards
+ * @return The expanded scale factor
+ **/
+internal fun calculateExpandedScale(cardAlignment: CardAlignment, itemCount: Int): Float = when (cardAlignment) {
+    CardAlignment.START, CardAlignment.END -> 1f / (1f + FanStepRatio * (itemCount - 1))
+    else -> 1f
+}
+
+/**
+ * Calculates the offset of a card of the expanded stack. Vertical alignments widen the vertical
+ * step and keep the horizontal peek, START and END lay the cards out as a horizontal fan whose
+ * outer edges coincide with the card edges.
+ *
+ * @param cardAlignment The alignment of cards in the stack
+ * @param depth The animated position of the card in the stack, 0 being the front
+ * @param spacingPx The collapsed spacing in pixels
+ * @param cardSize The size of the card
+ * @param itemCount Total number of cards
+ * @return The expanded offset
+ **/
+internal fun calculateExpandedOffset(
+    cardAlignment: CardAlignment,
+    depth: Float,
+    spacingPx: Float,
+    cardSize: Size,
+    itemCount: Int
+): Offset {
+    val peek = calculateLastOffset(cardAlignment, 1f, 1f)
+    return when (cardAlignment) {
+        CardAlignment.START, CardAlignment.END -> {
+            val scale = calculateExpandedScale(cardAlignment, itemCount)
+            val inset = cardSize.width * (1f - scale)
+            val step = FanStepRatio * scale * cardSize.width
+            Offset(-peek.x * inset + peek.x * depth * step, 0f)
+        }
+
+        else -> Offset(
+            peek.x * depth * spacingPx,
+            peek.y * depth * expandedStep(spacingPx, cardSize.height)
+        )
+    }
+}
