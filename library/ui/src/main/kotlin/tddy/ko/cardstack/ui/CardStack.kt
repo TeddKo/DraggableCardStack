@@ -322,6 +322,20 @@ private fun DraggableCard(
         }
     }
 
+    fun settleLand(residual: Offset) {
+        land += residual
+        landJob?.cancel()
+        heldZ = null
+        landJob = scope.launch {
+            val self = coroutineContext.job
+            try {
+                animate(Offset.VectorConverter, land, Offset.Zero, Offset.Zero, SettleSpring) { value, _ -> land = value }
+            } finally {
+                if (landJob === self) landJob = null
+            }
+        }
+    }
+
     fun launchFlight(block: suspend CoroutineScope.() -> Unit) {
         flight?.cancel()
         heldZ = null
@@ -375,18 +389,9 @@ private fun DraggableCard(
             }
             if (dragMode == DragMode.Reverse) {
                 state.pulledItem = state.order.last()
-                land += dragStart
                 dragOffset = moved
+                settleLand(dragStart)
                 dragStart = Offset.Zero
-                landJob?.cancel()
-                landJob = scope.launch {
-                    val self = coroutineContext.job
-                    try {
-                        animate(Offset.VectorConverter, land, Offset.Zero, Offset.Zero, SettleSpring) { value, _ -> land = value }
-                    } finally {
-                        if (landJob === self) landJob = null
-                    }
-                }
             }
             if (dragMode == DragMode.Forward) {
                 landJob?.cancel()
@@ -442,9 +447,11 @@ private fun DraggableCard(
                     when {
                         state.isExpanded -> {
                             state.pull?.let { state.landing = Landing(state.pulledItem, it, release, false) }
+                            if (mode == DragMode.Reverse) dragOffset = Offset.Zero
                             settle(release)
                         }
                         mode == DragMode.Reverse || (mode == null && isReverseSwipe) -> {
+                            if (mode == null && dragOffset != Offset.Zero) settleLand(dragOffset)
                             dragOffset = Offset.Zero
                             val committed = if (isReverseSwipe) direction else null
                             if (state.pull == null && committed != null) {
