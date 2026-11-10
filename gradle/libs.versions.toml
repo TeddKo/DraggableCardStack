@@ -1,6 +1,7 @@
 [versions]
 androidGradlePlugin = "9.5.1"
 kotlin = "2.4.21"
+kotlinStdlib = "2.2.21"
 
 vankiktechMaven = "0.37.0"
 cardstack = "1.1.0"

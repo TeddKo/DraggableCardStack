@@ -11,6 +11,7 @@ android {
 }
 
 kotlin {
+    coreLibrariesVersion = libs.versions.kotlinStdlib.get()
     explicitApi()
     compilerOptions {
         apiVersion.set(KotlinVersion.KOTLIN_2_2)
@@ -19,6 +20,8 @@ kotlin {
 }
 
 dependencies {
+    api(libs.androidx.compose.ui)
+    api(libs.androidx.compose.foundation)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.runner)
@@ -29,7 +32,10 @@ dependencies {
 mavenPublishing {
     publishToMavenCentral()
 
-    if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+    val toCentral = gradle.startParameter.taskNames.any { "MavenCentral" in it }
+    val hasKey = providers.gradleProperty("signingInMemoryKey").isPresent ||
+        providers.gradleProperty("signing.keyId").isPresent
+    if (toCentral || hasKey) {
         signAllPublications()
     }
 

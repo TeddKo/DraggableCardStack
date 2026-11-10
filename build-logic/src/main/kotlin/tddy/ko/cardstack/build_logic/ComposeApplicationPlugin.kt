@@ -16,6 +16,8 @@ class ComposeApplicationPlugin : Plugin<Project> {
             }
             configureComposeExtension(commonExtension = applicationExtension)
             dependencies {
+                add("implementation", libs.library("androidx-compose-ui"))
+                add("implementation", libs.library("androidx-compose-foundation"))
                 add("implementation", libs.library("androidx-compose-material3"))
                 add("implementation", libs.library("androidx-compose-activity"))
                 add("implementation", libs.library("androidx-compose-ui-tooling-preview"))
