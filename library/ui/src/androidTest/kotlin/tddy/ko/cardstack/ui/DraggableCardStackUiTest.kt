@@ -5,6 +5,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.junit4.StateRestorationTester
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -211,6 +216,117 @@ class DraggableCardStackUiTest {
         tapAt(cardHeight.value / 2)
 
         assertFalse(state.isExpanded)
+    }
+
+    @Test
+    fun rightThenLeftFlingDuringFlight_landsCleanly() {
+        val state = CardStackState()
+        setStack(listOf("a", "b", "c", "d"), state)
+        composeRule.mainClock.autoAdvance = false
+
+        flingHorizontal(150f)
+        composeRule.mainClock.advanceTimeBy(50)
+        flingHorizontal(-150f)
+        composeRule.mainClock.autoAdvance = true
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(0, 1, 2, 3), state.order)
+        flingHorizontal(150f)
+        assertEquals(1, state.frontIndex)
+    }
+
+    @Test
+    fun flingOverlappingFlyingCard_advancesNewFront() {
+        val state = CardStackState()
+        setStack(listOf("a", "b", "c", "d"), state)
+        composeRule.mainClock.autoAdvance = false
+
+        flingHorizontal(150f)
+        composeRule.mainClock.advanceTimeBy(50)
+        flingHorizontal(150f)
+        composeRule.mainClock.autoAdvance = true
+        composeRule.waitForIdle()
+
+        assertEquals(2, state.frontIndex)
+    }
+
+    @Test
+    fun flingWhileExpanded_isIgnored() {
+        val state = CardStackState()
+        setStack(listOf("a", "b", "c", "d"), state, spacingRatio = 0.1f)
+        tapAt(cardHeight.value / 2)
+
+        flingHorizontal(150f)
+
+        assertTrue(state.isExpanded)
+        assertEquals(0, state.frontIndex)
+    }
+
+    @Test
+    fun initialItemsGrowAndShrink_rendersCurrentItems() {
+        val state = CardStackState()
+        val items = mutableStateOf(listOf("a", "b", "c"))
+        composeRule.setContent {
+            DraggableCardStack(
+                initialItems = items.value,
+                height = cardHeight,
+                cardSpacingRatio = 0.5f,
+                cardAlignment = CardAlignment.BOTTOM,
+                dragAlignment = DragAlignment.HORIZONTAL,
+                state = state,
+            ) { item -> BasicText(item) }
+        }
+
+        composeRule.runOnIdle { items.value = listOf("a", "b", "c", "d", "e") }
+        composeRule.onNodeWithText("e").assertExists()
+        assertEquals(listOf(0, 1, 2, 3, 4), state.order)
+
+        composeRule.runOnIdle { items.value = listOf("a", "b") }
+        composeRule.onNodeWithText("c").assertDoesNotExist()
+        composeRule.onNodeWithText("b").assertExists()
+        assertEquals(listOf(0, 1), state.order)
+    }
+
+    @Test
+    fun configChangeRestore_keepsOrderAndExpansion() {
+        val tester = StateRestorationTester(composeRule)
+        var state = CardStackState()
+        tester.setContent {
+            state = rememberCardStackState()
+            DraggableCardStack(
+                initialItems = listOf("a", "b", "c", "d"),
+                height = cardHeight,
+                cardSpacingRatio = 0.5f,
+                cardAlignment = CardAlignment.BOTTOM,
+                dragAlignment = DragAlignment.HORIZONTAL,
+                state = state,
+            ) { item -> BasicText(item) }
+        }
+        composeRule.runOnIdle {
+            state.rotate(1)
+            state.expand()
+        }
+
+        tester.emulateSavedInstanceStateRestore()
+
+        composeRule.runOnIdle {
+            assertEquals(listOf(1, 2, 3, 0), state.order)
+            assertTrue(state.isExpanded)
+        }
+    }
+
+    @Test
+    fun frontCardSemantics_nextAndPreviousRotate() {
+        val state = CardStackState()
+        setStack(listOf("a", "b", "c", "d"), state)
+
+        val actions = composeRule.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.CustomActions))
+            .fetchSemanticsNode().config[SemanticsActions.CustomActions]
+
+        composeRule.runOnIdle { actions.first { it.label == "Next card" }.action() }
+        assertEquals(1, state.frontIndex)
+        composeRule.runOnIdle { actions.first { it.label == "Previous card" }.action() }
+        assertEquals(0, state.frontIndex)
     }
 
     private companion object {
