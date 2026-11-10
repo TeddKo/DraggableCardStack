@@ -9,7 +9,6 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
-import kotlinx.coroutines.Job
 
 /**
  * State holder of a [DraggableCardStack] keeping the expansion flag and the card order.
@@ -35,8 +34,8 @@ public class CardStackState internal constructor(
     /** Item index of the pulled card. */
     internal var pulledItem: Int = -1
 
-    /** Spring of the pulled card after release. */
-    internal var pullJob: Job? = null
+    /** Release of a reverse drag handed to the pulled card, which then runs its own landing. */
+    internal var landing: Landing? by mutableStateOf(null)
 
     /** Index in the item list of the front card, `-1` for an empty stack. */
     public val frontIndex: Int get() = order.firstOrNull() ?: -1
@@ -75,3 +74,13 @@ public class CardStackState internal constructor(
 @Composable
 public fun rememberCardStackState(): CardStackState =
     rememberSaveable(saver = CardStackState.Saver) { CardStackState() }
+
+/**
+ * Release of a reverse drag, the pulled card either landing in front or sliding back behind the stack.
+ *
+ * @property item Item index of the pulled card
+ * @property from Offset of the pulled card at release
+ * @property velocity Release velocity of the finger
+ * @property committed Whether the pulled card lands in front
+ **/
+internal class Landing(val item: Int, val from: Offset, val velocity: Offset, val committed: Boolean)

@@ -137,6 +137,25 @@ class DraggableCardStackUiTest {
     }
 
     @Test
+    fun twoQuickDownSwipes_bringTwoBackCardsToFront() {
+        val state = CardStackState()
+        setStack(listOf("a", "b", "c", "d"), state, dragAlignment = DragAlignment.NONE)
+        composeRule.mainClock.autoAdvance = false
+
+        repeat(2) {
+            composeRule.onNodeWithTag(StackTag).performTouchInput {
+                val x = centerX
+                swipe(Offset(x, bottom - cardHeight.toPx() * 0.8f), Offset(x, bottom - cardHeight.toPx() * 0.1f), 120)
+            }
+            composeRule.mainClock.advanceTimeBy(150)
+        }
+        composeRule.mainClock.autoAdvance = true
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(2, 3, 0, 1), state.order)
+    }
+
+    @Test
     fun shortLeftDrag_keepsOrder() {
         val state = CardStackState()
         setStack(listOf("a", "b", "c", "d"), state)

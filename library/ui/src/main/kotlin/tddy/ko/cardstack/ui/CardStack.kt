@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -268,17 +269,52 @@ private fun DraggableCard(
 
     val depth by animateFloatAsState(index.toFloat(), DepthSpring, label = "depth")
     var dragMode by remember { mutableStateOf<DragMode?>(null) }
+    var land by remember { mutableStateOf(Offset.Zero) }
+    var landJob by remember { mutableStateOf<Job?>(null) }
     val pulling by remember { derivedStateOf { state.pull != null && state.pulledItem == itemIndex } }
     val lift by animateFloatAsState(
-        if ((isLifted && dragMode == DragMode.Forward) || pulling) 1f else 0f,
+        if ((isLifted && dragMode == DragMode.Forward) || pulling || landJob != null) 1f else 0f,
         tween(durationMillis = 200),
         label = "lift"
     )
 
     fun heldOffset(): Offset = when {
         pulling -> state.pull ?: Offset.Zero
-        dragMode == DragMode.Reverse || (isLifted && dragMode == null) -> Offset.Zero
-        else -> dragOffset
+        dragMode == DragMode.Reverse || (isLifted && dragMode == null) -> land
+        else -> dragOffset + land
+    }
+
+    LaunchedEffect(state.landing) {
+        val landing = state.landing?.takeIf { it.item == itemIndex } ?: return@LaunchedEffect
+        val from = landing.from
+        land = from
+        state.landing = null
+        if (state.pulledItem == itemIndex) state.pull = null
+        landJob?.cancel()
+        landJob = scope.launch {
+            val self = coroutineContext.job
+            try {
+                val out = pullOut(from, cardSize.toSize())
+                if (landing.committed && from.getDistance() < out.getDistance() * PullTurnRatio) {
+                    heldZ = 0f
+                    launch turn@{
+                        animate(Offset.VectorConverter, from, out, -landing.velocity, PullOutSpring) { value, _ ->
+                            land = value
+                            if (value.getDistance() >= out.getDistance() * PullTurnRatio) this@turn.cancel()
+                        }
+                    }.join()
+                    heldZ = null
+                }
+                animate(Offset.VectorConverter, land, Offset.Zero, Offset.Zero, SettleSpring) { value, _ ->
+                    land = value
+                }
+            } finally {
+                if (landJob === self) {
+                    landJob = null
+                    if (flight == null) heldZ = null
+                }
+            }
+        }
     }
 
     fun launchFlight(block: suspend CoroutineScope.() -> Unit) {
@@ -332,6 +368,11 @@ private fun DraggableCard(
                 else -> null
             }
             if (dragMode == DragMode.Reverse) state.pulledItem = state.order.last()
+            if (dragMode == DragMode.Forward) {
+                landJob?.cancel()
+                dragOffset += land
+                land = Offset.Zero
+            }
         }
         if (dragMode == DragMode.Reverse) state.pull = -dragOffset
     }
@@ -360,12 +401,6 @@ private fun DraggableCard(
                 enabled = index == 0 && itemCount >= 2,
                 startDragImmediately = flight != null,
                 onDragStarted = {
-                    state.pullJob?.cancel()
-                    state.pull?.takeIf { state.pulledItem == itemIndex }?.let {
-                        dragOffset = it
-                        dragMode = DragMode.Forward
-                    }
-                    state.pull = null
                     tapJob?.cancel()
                     flight?.cancel()
                     isLifted = true
@@ -388,27 +423,13 @@ private fun DraggableCard(
                         mode == DragMode.Reverse || (mode == null && isReverseSwipe) -> {
                             dragOffset = Offset.Zero
                             val committed = if (isReverseSwipe) direction else null
-                            val pulled = state.pull ?: when (committed) {
-                                DragDirection.LEFT -> Offset(1f, 0f)
-                                DragDirection.DOWN -> Offset(0f, -1f)
-                                else -> null
+                            if (state.pull == null && committed != null) {
+                                state.pulledItem = state.order.last()
+                                state.pull = if (committed == DragDirection.LEFT) Offset(1f, 0f) else Offset(0f, -1f)
                             }
-                            if (state.pull == null && pulled != null) state.pulledItem = state.order.last()
-                            state.pullJob = scope.launch {
-                                if (pulled != null && committed != null) {
-                                    val out = pullOut(pulled, cardSize.toSize())
-                                    launch turn@{
-                                        animate(Offset.VectorConverter, pulled, out, -release, PullOutSpring) { value, _ ->
-                                            state.pull = value
-                                            if (value.getDistance() >= out.getDistance() * PullTurnRatio) this@turn.cancel()
-                                        }
-                                    }.join()
-                                    state.rotate(-1)
-                                }
-                                animate(Offset.VectorConverter, state.pull ?: Offset.Zero, Offset.Zero, Offset.Zero, SettleSpring) { value, _ ->
-                                    state.pull = value
-                                }
-                                state.pull = null
+                            state.pull?.let { from ->
+                                if (committed != null) state.rotate(-1)
+                                state.landing = Landing(state.pulledItem, from, release, committed != null)
                             }
                         }
                         !isForward -> settle(release)
