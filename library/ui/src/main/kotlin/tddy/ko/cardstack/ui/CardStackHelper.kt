@@ -243,3 +243,29 @@ internal fun GraphicsLayerScope.applyAlignmentAdjustment(
         CardAlignment.END -> translationX += widthAdjustment
     }
 }
+
+/**
+ * Rotates the card order, a positive [steps] being as many forward swipes (first to back) and a
+ * negative one as many reverse swipes (last to front).
+ *
+ * @param order The current permutation of item indices
+ * @param steps The signed number of forward swipes
+ * @return The rotated permutation
+ **/
+internal fun rotate(order: List<Int>, steps: Int): List<Int> {
+    if (order.isEmpty()) return order
+    val k = steps.mod(order.size)
+    return order.drop(k) + order.take(k)
+}
+
+/**
+ * Fits the card order to a new item count, keeping the surviving order and appending new indices.
+ *
+ * @param order The current permutation of item indices
+ * @param size The new item count
+ * @return A permutation of `0 until size`
+ **/
+internal fun reconcile(order: List<Int>, size: Int): List<Int> {
+    val kept = order.filter { it < size }
+    return kept + (0 until size).filter { it !in kept }
+}
