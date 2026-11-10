@@ -61,7 +61,7 @@ fun CardStackDemo() {
 
 ## Behavior
 - Dragging the front card lifts and tilts it while the back cards stay in place. A release commits by drag distance (40% of the card extent) or by velocity.
-- RIGHT or UP moves the first card to the back, LEFT or DOWN moves the last card to the front, coming out from behind the stack in the swipe direction.
+- RIGHT or UP moves the first card to the back, LEFT or DOWN moves the last card to the front, coming out from behind the stack on the opposite side and landing in the swipe direction.
 - A new drag interrupts a running flight, so rapid flicks are never dropped.
 - Tapping a collapsed stack expands it. Tapping the front card of an expanded stack collapses it. Tapping a back card brings it to the front as many swipes as its depth, then collapses the stack.
 - START and END expand into a horizontal fan scaled to fit the stack width, the other alignments widen the spacing and grow the stack height.

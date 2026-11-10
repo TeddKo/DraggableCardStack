@@ -224,8 +224,8 @@ public fun <T> DraggableCardStack(
  *   the draw phase, so a drag does not recompose the content
  * - A forward swipe flies the card out along the release vector, then tucks it to the back
  * - Back cards stay at their slots while the front card is dragged and spring to the new slots when the order changes
- * - A reverse swipe springs the card to the second slot while the last card comes out from behind the stack in the
- *   swipe direction by one card extent, then lands in front
+ * - A reverse swipe springs the card to the second slot while the last card comes out from behind the stack on the
+ *   side opposite to the swipe by one card extent, then lands in front moving in the swipe direction
  * - A tap expands the stack, collapses it from the front card, or brings the tapped back card to the
  *   front as many swipes as its depth
  **/
@@ -301,13 +301,13 @@ private fun DraggableCard(
         previousIndex.intValue = index
         if (index == 0 && wasLast && itemCount >= 3 && state.lastMove == Move.REVERSE) {
             val extent = extentOf(state.lastDirection, cardSize)
-            val toward = when (state.lastDirection) {
-                DragDirection.LEFT -> Offset(-1f, 0f)
-                DragDirection.RIGHT -> Offset(1f, 0f)
-                DragDirection.UP -> Offset(0f, -1f)
-                DragDirection.DOWN -> Offset(0f, 1f)
+            val from = when (state.lastDirection) {
+                DragDirection.LEFT -> Offset(1f, 0f)
+                DragDirection.RIGHT -> Offset(-1f, 0f)
+                DragDirection.UP -> Offset(0f, 1f)
+                DragDirection.DOWN -> Offset(0f, -1f)
             }
-            flyOut(toward * extent, extent * 0.5f, Offset.Zero, topFirst = false)
+            flyOut(from * extent, extent * 0.5f, Offset.Zero, topFirst = false)
         }
     }
 
