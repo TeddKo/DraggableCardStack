@@ -255,7 +255,7 @@ class DraggableCardStackUiTest {
     }
 
     @Test
-    fun tapRightAfterTapSelect_expandsAgain() {
+    fun tapDuringTapSelectLanding_expandsAgain() {
         val state = CardStackState()
         setStack(listOf("a", "b", "c", "d"), state, spacingRatio = 0.1f)
         tapAt(cardHeight.value / 2)
@@ -265,7 +265,8 @@ class DraggableCardStackUiTest {
         composeRule.onNodeWithTag(StackTag).performTouchInput {
             click(Offset(centerX, bottom - (cardHeight.value + 1.5f * step).dp.toPx()))
         }
-        composeRule.mainClock.advanceTimeBy(100)
+        composeRule.mainClock.advanceTimeBy(300)
+        assertFalse(state.isExpanded)
         composeRule.onNodeWithTag(StackTag).performTouchInput {
             click(Offset(centerX, bottom - (cardHeight.value / 2).dp.toPx()))
         }
