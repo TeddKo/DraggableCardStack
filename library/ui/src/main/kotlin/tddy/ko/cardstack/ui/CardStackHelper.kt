@@ -26,39 +26,6 @@ public enum class CardAlignment { BOTTOM, BOTTOM_START, BOTTOM_END, TOP, TOP_STA
 public enum class DragAlignment { VERTICAL, HORIZONTAL, NONE }
 
 /**
- * Calculates the swipe progress as a normalized value between -1 and 1.
- *
- * @param offset The current drag offset
- * @param velocityThresholdPx The velocity threshold in pixels
- * @return The normalized swipe progress
- **/
-internal fun calculateSwipeProgress(offset: Offset, velocityThresholdPx: Float): Float {
-    val xProgress = offset.x / velocityThresholdPx
-    val yProgress = offset.y / velocityThresholdPx
-    return when {
-        xProgress.absoluteValue > yProgress.absoluteValue -> xProgress.coerceIn(-1f, 1f)
-        else -> -yProgress.coerceIn(-1f, 1f)
-    }
-}
-
-/**
- * Calculates the scale factor for each card in the stack.
- *
- * @param depth The animated position of the card in the stack, 0 being the front
- * @return The calculated scale factor
- **/
-internal fun calculateScales(depth: Float, itemCount: Int, stackDragProgress: Float): Float {
-    val baseScale = 1f - (depth * 0.05f)
-    val scaleIncrement = 0.05f * stackDragProgress
-    return when {
-        depth > 0f -> baseScale + (scaleIncrement * (itemCount - depth - 1))
-            .coerceAtMost(.05f)
-
-        else -> baseScale
-    }
-}
-
-/**
  * Calculates the initial offset for each card based on its position in the stack.
  *
  * @param cardAlignment The alignment of cards in the stack
@@ -79,59 +46,6 @@ internal fun calculateLastOffset(
     CardAlignment.BOTTOM_END -> Offset(spacingPx * depth, -spacingPx * depth)
     CardAlignment.START -> Offset(-spacingPx * depth, 0f)
     CardAlignment.END -> Offset(spacingPx * depth, 0f)
-}
-
-/**
- * Calculates the offset during drag operations based on stack configuration.
- *
- * @param stackDragProgress The current drag progress
- * @param depth The animated position of the card in the stack, 0 being the front
- * @param spacingPx Spacing between cards
- * @param itemCount Total number of cards
- * @param cardAlignment Stack alignment
- * @return The calculated drag-based offset
- **/
-internal fun calculateDragBasedOffset(
-    stackDragProgress: Float,
-    depth: Float,
-    spacingPx: Float,
-    itemCount: Int,
-    cardAlignment: CardAlignment
-): Offset {
-    val isLast = depth > itemCount - 1.5f && stackDragProgress < 0f
-    val progress = if (isLast) {
-        (-stackDragProgress).coerceIn(0f, 1f)
-    } else {
-        (stackDragProgress * (1f - (depth / itemCount))).coerceIn(-1f, 1f)
-    }
-
-    val easedProgress = progress * progress * (3 - 2 * progress)
-
-    return when (cardAlignment) {
-        CardAlignment.TOP -> Offset(
-            0f,
-            spacingPx * easedProgress * if (isLast) 1f else -1f
-        )
-        CardAlignment.BOTTOM -> Offset(0f, spacingPx * easedProgress)
-        CardAlignment.TOP_START -> Offset(
-            spacingPx * easedProgress,
-            -spacingPx * easedProgress
-        )
-        CardAlignment.BOTTOM_START -> Offset(
-            spacingPx * easedProgress,
-            spacingPx * easedProgress
-        )
-        CardAlignment.TOP_END -> Offset(
-            -spacingPx * easedProgress,
-            -spacingPx * easedProgress
-        )
-        CardAlignment.BOTTOM_END -> Offset(
-            -spacingPx * easedProgress,
-            spacingPx * easedProgress
-        )
-        CardAlignment.START -> Offset(spacingPx * easedProgress, 0f)
-        CardAlignment.END -> Offset(-spacingPx * easedProgress, 0f)
-    }
 }
 
 /**

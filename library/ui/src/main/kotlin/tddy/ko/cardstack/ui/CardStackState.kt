@@ -10,7 +10,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 
 /**
- * Direction of the latest order change, read by the card that flies in from the back.
+ * Direction of the latest order change, read by the card that comes in from the back.
  **/
 internal enum class Move { NONE, FORWARD, REVERSE }
 
@@ -35,6 +35,9 @@ public class CardStackState internal constructor(
     internal var lastMove: Move = Move.NONE
         private set
 
+    internal var lastDirection: DragDirection = DragDirection.LEFT
+        private set
+
     /** Index in the item list of the front card, `-1` for an empty stack. */
     public val frontIndex: Int get() = order.firstOrNull() ?: -1
 
@@ -48,7 +51,8 @@ public class CardStackState internal constructor(
         isExpanded = false
     }
 
-    internal fun rotate(steps: Int) {
+    internal fun rotate(steps: Int, direction: DragDirection = DragDirection.LEFT) {
+        lastDirection = direction
         lastMove = if (steps < 0) Move.REVERSE else Move.FORWARD
         order = rotate(order, steps)
     }

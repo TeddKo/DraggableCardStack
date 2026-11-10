@@ -159,6 +159,21 @@ class DraggableCardStackUiTest {
         assertTrue("content recomposed $contentComposeCount times", contentComposeCount <= MaxGestureRecompositions)
     }
 
+    @Test
+    fun dragWithoutRelease_keepsBackCardsInPlace() {
+        setStack(listOf("a", "b", "c"), CardStackState())
+        val before = composeRule.onNodeWithText("b").getUnclippedBoundsInRoot()
+
+        composeRule.onNodeWithTag(StackTag).performTouchInput {
+            down(Offset(centerX, bottom - cardHeight.toPx() / 2))
+            repeat(10) { moveBy(Offset(8.dp.toPx(), 0f)) }
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(before, composeRule.onNodeWithText("b").getUnclippedBoundsInRoot())
+        composeRule.onNodeWithTag(StackTag).performTouchInput { up() }
+    }
+
     private var contentComposeCount = 0
 
     private fun tapAt(yFromBottomDp: Float) {

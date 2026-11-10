@@ -56,6 +56,14 @@ class CardStackStateTest {
     }
 
     @Test
+    fun rotateReverse_keepsReleaseDirection() {
+        val state = CardStackState()
+        state.sync(3)
+        state.rotate(-1, DragDirection.DOWN)
+        assertEquals(DragDirection.DOWN, state.lastDirection)
+    }
+
+    @Test
     fun sync_withSameSize_writesNothing() {
         val state = CardStackState()
         state.sync(2)

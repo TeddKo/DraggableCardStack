@@ -19,11 +19,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -150,8 +148,6 @@ public fun <T> DraggableCardStack(
         }
     }
 
-    val stackDragProgress = remember { mutableFloatStateOf(0f) }
-
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -179,7 +175,6 @@ public fun <T> DraggableCardStack(
                     index = index,
                     cardAlignment = cardAlignment,
                     dragAlignment = dragAlignment,
-                    stackDragProgress = stackDragProgress,
                     expansion = expansion,
                     content = { cardContent(initialItems[itemIndex]) }
                 )
@@ -220,7 +215,6 @@ public fun <T> DraggableCardStack(
  * @param index Position of this card in the stack (0 is the front card)
  * @param cardAlignment Alignment of cards in the stack
  * @param dragAlignment Allowed drag directions
- * @param stackDragProgress Drag progress of the front card (-1 to 1), read by back cards at draw time
  * @param expansion Animated expansion of the stack, 0 collapsed and 1 expanded
  * @param content Composable content to be displayed in the card
  *
@@ -229,7 +223,9 @@ public fun <T> DraggableCardStack(
  * - Resting slot, drag offset and flights are applied in the placement phase, lift and tilt in
  *   the draw phase, so a drag does not recompose the content
  * - A forward swipe flies the card out along the release vector, then tucks it to the back
- * - A reverse swipe springs the card to the second slot while the last card flies out and lands in front
+ * - Back cards stay at their slots while the front card is dragged and spring to the new slots when the order changes
+ * - A reverse swipe springs the card to the second slot while the last card comes out from behind the stack in the
+ *   swipe direction by one card extent, then lands in front
  * - A tap expands the stack, collapses it from the front card, or brings the tapped back card to the
  *   front as many swipes as its depth
  **/
@@ -244,7 +240,6 @@ private fun DraggableCard(
     index: Int,
     cardAlignment: CardAlignment,
     dragAlignment: DragAlignment,
-    stackDragProgress: MutableFloatState,
     expansion: State<Float>,
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -305,11 +300,14 @@ private fun DraggableCard(
         val wasLast = previousIndex.intValue == itemCount - 1
         previousIndex.intValue = index
         if (index == 0 && wasLast && itemCount >= 3 && state.lastMove == Move.REVERSE) {
-            val peek = calculateLastOffset(cardAlignment, 1f, 1f)
-            val isVertical = cardAlignment != CardAlignment.START && cardAlignment != CardAlignment.END
-            val extent = (if (isVertical) cardSize.height else cardSize.width).toFloat()
-            val axis = if (isVertical) Offset(0f, peek.y) else Offset(peek.x, 0f)
-            flyOut(axis * extent, extent * 0.5f, Offset.Zero, topFirst = false)
+            val extent = extentOf(state.lastDirection, cardSize)
+            val toward = when (state.lastDirection) {
+                DragDirection.LEFT -> Offset(-1f, 0f)
+                DragDirection.RIGHT -> Offset(1f, 0f)
+                DragDirection.UP -> Offset(0f, -1f)
+                DragDirection.DOWN -> Offset(0f, 1f)
+            }
+            flyOut(toward * extent, extent * 0.5f, Offset.Zero, topFirst = false)
         }
     }
 
@@ -320,7 +318,6 @@ private fun DraggableCard(
             DragAlignment.HORIZONTAL -> Offset(x = delta.x, y = 0f)
             DragAlignment.NONE -> delta
         }
-        if (index == 0) stackDragProgress.floatValue = calculateSwipeProgress(dragOffset, velocityThresholdPx)
     }
 
     Box(
@@ -334,10 +331,7 @@ private fun DraggableCard(
                     val expanded = calculateExpandedOffset(
                         cardAlignment, depth, spacingPx, cardSize.toSize(), itemCount
                     )
-                    val slot = lerp(collapsed, expanded, expansion.value) +
-                        calculateDragBasedOffset(
-                            stackDragProgress.floatValue, depth, spacingPx, itemCount, cardAlignment
-                        ) + dragOffset
+                    val slot = lerp(collapsed, expanded, expansion.value) + dragOffset
                     placeable.place(
                         x = slot.x.roundToInt(),
                         y = slot.y.roundToInt(),
@@ -355,7 +349,6 @@ private fun DraggableCard(
                 },
                 onDragStopped = { velocity ->
                     isLifted = false
-                    stackDragProgress.floatValue = 0f
                     val release = Offset(velocity.x, velocity.y)
                     val direction = swipeDirection(
                         offset = dragOffset,
@@ -372,7 +365,7 @@ private fun DraggableCard(
                             flyOut(out, out.getDistance().coerceAtMost(extentOf(direction, cardSize)), release, topFirst = true)
                         }
                         else -> {
-                            state.rotate(-1)
+                            state.rotate(-1, direction)
                             settle(release)
                         }
                     }
@@ -382,7 +375,7 @@ private fun DraggableCard(
             .onSizeChanged { cardSize = it }
             .graphicsLayer {
                 val scale = lerp(
-                    calculateScales(depth, itemCount, stackDragProgress.floatValue),
+                    1f - depth * 0.05f,
                     calculateExpandedScale(cardAlignment, itemCount),
                     expansion.value
                 ) + LiftScale * lift
